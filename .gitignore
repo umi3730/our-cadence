@@ -1,0 +1,35 @@
+# Dependencies and generated output (all projects)
+node_modules/
+.next/
+.vinext/
+dist/
+out/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+
+# Local tool state and temporary work
+.sites-runtime/
+.wrangler/
+.agents/
+.codex/
+.vercel/
+/studio/work/
+/studio/outputs/
+/studio/design/archive/
+/releases/
+
+# Secrets and local configuration
+.env*
+!.env.example
+.dev.vars*
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Logs and OS metadata
+*.log
+.DS_Store
+Thumbs.db
+Desktop.ini

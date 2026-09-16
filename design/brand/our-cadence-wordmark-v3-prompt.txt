@@ -1,0 +1,10 @@
+Generation: built-in image_gen
+Asset: our-cadence-wordmark-v3-gradient.png
+Earlier versions preserved. Not integrated into the application.
+
+Use case: precise-object-edit / logo-brand color revision.
+Image 1 is the edit target: original handwritten "Our Cadence." wordmark.
+Image 2 is ONLY a color palette reference. Its Japanese writing, brands, white background and rectangle must NOT be incorporated.
+Keep Image 1's exact text "Our Cadence.", capitalization and final period, lettering shapes and stroke thickness, distinctive O and C loops, sparse sparkle/ray ornaments, short underline, horizontal layout and margins unchanged.
+Change only the color treatment: replace the coral text and sky-blue accents with ONE smooth continuous LEFT-TO-RIGHT gradient spanning the entire logo width, inspired by image 2. Start with rich violet-indigo approximately #29285D at the far left, flow through dusty muted purple #716085 in the middle, end with soft mauve-rose pink #C58DB5 at the far right. No pure black, no bright electric blue, no coral or cyan remaining. The gradient progresses continuously across words (not independently reset on each letter). Apply corresponding harmonious gradient colors to stars, rays, underline and final dot as well. Elegant, gentle, youth music-brand feeling.
+Output just ONE logo on genuinely transparent alpha. The gradient is INSIDE the lettering and ornaments, never a rectangular background. Smooth clean antialiased edges. Remove incidental speckles and edge debris. No glow, bevel, drop shadow, texture, outline, extra text, mockup or presentation sheet. This is an image color edit, not a UI or website design.
