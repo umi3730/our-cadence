@@ -194,3 +194,11 @@ The portable build runs Vinext directly without a host `timeout` command. The ma
 
 - [vinext Documentation](https://github.com/cloudflare/vinext)
 - [Drizzle D1 Guide](https://orm.drizzle.team/docs/get-started/d1-new)
+
+## Image → Music Profile prototype
+
+The studio can now analyze a local image before theme generation. The current prototype runs entirely in the browser and does **not** upload the source image. It extracts deterministic visual features (brightness, saturation, contrast, warmth, palette and image complexity), maps them into an editable seven-axis Music Profile, and uses that profile to alter theme scale, density, contour, dynamics and suggested scene tempos.
+
+Music Profile axes: Energy, Warmth, Tension, Mystery, Brightness, Elegance and Aggression. The small image thumbnail and visual fingerprint are stored with the project so the profile survives export/import without embedding the full-resolution image.
+
+This is intentionally a visual-feature prototype rather than semantic character recognition. A future CLIP/VLM layer can replace or augment the analyzer while keeping the same Music Profile contract and deterministic composition pipeline.

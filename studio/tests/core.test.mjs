@@ -38,12 +38,22 @@ test('themes are reproducible, distinct, and constrained to four bars and the ch
   }
 });
 
+test('image Music Profile is deterministic and materially changes composition', () => {
+  const base = { name: 'OC', description: 'image-derived profile', mood: 'resolute', image: { fingerprint: 'img-demo', thumbnail: '', palette: [], visual: { brightness: 35, saturation: 60, contrast: 65, complexity: 70, warmth: 31 } }, music: { energy: 78, warmth: 31, tension: 70, mystery: 66, brightness: 35, elegance: 54, aggression: 72, hue: 210 } };
+  const a = generateThemes(base, 0), b = generateThemes(base, 0), calmer = generateThemes({ ...base, music: { ...base.music, energy: 25, aggression: 20 } }, 0);
+  assert.deepEqual(a, b);assert.notDeepEqual(a, calmer);
+  assert.ok(a.every(theme => theme.notes.every(note => note.beat >= 0 && note.beat + note.duration <= 16 && note.velocity > 0 && note.velocity <= 1)));
+  assert.equal(draftSchema.safeParse({ ...makeDraft(), profile: base, candidates: a, theme: a[0] }).success, true);
+});
+
 test('every scene repeats the exact selected theme, without changing pitch, rhythm or duration', () => {
   for (const profile of EXAMPLES) for (const theme of generateThemes(profile, 0)) for (const [scene, config] of Object.entries(SCENES)) {
     const score = arrange(theme, scene, config.bpm, config.voice);
     assert.equal(score.tracks.length, 4);assert.equal(score.beats, 64);
     for (let repeat = 0; repeat < 4; repeat++) {
-      assert.deepEqual(score.tracks[0].notes.slice(repeat * theme.notes.length, (repeat + 1) * theme.notes.length).map(n => ({ ...n, beat: n.beat - repeat * 16 })), theme.notes);
+      const phrase = score.tracks[0].notes.slice(repeat * theme.notes.length, (repeat + 1) * theme.notes.length);
+      assert.deepEqual(phrase.map(n => ({ pitch: n.pitch, beat: n.beat - repeat * 16, duration: n.duration })), theme.notes.map(n => ({ pitch: n.pitch, beat: n.beat, duration: n.duration })));
+      assert.ok(phrase.every(n => n.velocity > 0 && n.velocity <= 1));
     }
     for (const track of score.tracks) { assert.ok(track.notes.length > 0);for (const n of track.notes) assert.ok(n.beat + n.duration <= 64 && n.pitch >= 0 && n.pitch <= 127); }
   }
