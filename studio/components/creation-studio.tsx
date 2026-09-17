@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState, useCallback, type CSSProperties }
 import { Play, Square, RefreshCw, Music2, Check, Headphones, AudioLines, LoaderCircle, Download, Upload, Save, ArrowRight, ArrowLeft, ArrowUpRight, Pencil, Disc3, Sun, Moon, Swords, Sparkles, FolderOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Player, renderStems, renderMix, encodeWav } from '@/lib/audio';
@@ -37,6 +38,7 @@ export default function Home() {
   const setVoice = (voice: Voice) => setSettings(prev => ({ ...prev, [scene]: { ...prev[scene], voice: voice as Settings[Scene]['voice'] } }));
   const setMix = (mix: Settings[Scene]['mix']) => setSettings(prev => ({ ...prev, [scene]: { ...prev[scene], mix } }));
   const [loop, setLoop] = useState(false), [versions, setVersions] = useState<Snapshot[]>([]);
+  const [masterVolume, setMasterVolume] = useState(1);
   const [ready, setReady] = useState(false), [saveState, setSaveState] = useState('正在读取本地草稿…');
   const [notice, setNotice] = useState(''), [exporting, setExporting] = useState(false);
   const storageAllowed = useRef(true), fileInput = useRef<HTMLInputElement | null>(null), imageInput = useRef<HTMLInputElement | null>(null);
@@ -49,6 +51,7 @@ export default function Home() {
   const player = useRef<Player | null>(null), request = useRef(0), cache = useRef(new Map<string, AudioBuffer>());
   const activePlayId = useRef<string | null>(null);
   const latestMix = useRef(mix);latestMix.current = mix;
+  const latestMasterVolume = useRef(masterVolume);latestMasterVolume.current = masterVolume;
   const score = useMemo(() => theme ? arrange(theme, scene, bpm, voice) : null, [theme, scene, bpm, voice]);
   const draft = useMemo<Draft>(() => ({ profile, take, candidates, theme, scene, settings, loop }), [profile, take, candidates, theme, scene, settings, loop]);
   function restore(next: Draft) { analysisRequest.current++;analysisController.current?.abort();setAnalyzingImage(false);setAnalysisPhase(null);stop();setImagePreviewUrl('');setVisionState(next.profile.image?.understanding ? 'ready' : 'idle');setProfile(next.profile);setTake(next.take);setCandidates(next.candidates);setTheme(next.theme);setScene(next.scene);setSettings(next.settings);setLoop(next.loop); }
@@ -71,9 +74,19 @@ export default function Home() {
     window.addEventListener('pagehide', flush);return () => window.removeEventListener('pagehide', flush);
   }, [draft, versions, ready]);
   useEffect(() => { const audio = new Player();player.current = audio;return () => { request.current++;void audio.dispose(); }; }, []);
+  useEffect(() => {
+    try { const saved = Number(localStorage.getItem('our-cadence.master-volume.v1')); if (Number.isFinite(saved) && saved >= 0 && saved <= 1.6) setMasterVolume(saved); } catch { /* optional preference */ }
+  }, []);
+  useEffect(() => { try { localStorage.setItem('our-cadence.master-volume.v1', String(masterVolume)); } catch { /* optional preference */ } }, [masterVolume]);
   useEffect(() => () => { analysisRequest.current++;analysisController.current?.abort(); }, []);
   useEffect(() => () => { if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl); }, [imagePreviewUrl]);
-  useEffect(() => { player.current?.updateMix(mix); }, [mix]);
+  useEffect(() => {
+    if (playing?.startsWith('track-')) {
+      const index = Number(playing.slice(6));
+      player.current?.updateMix(mix.map((item, i) => ({ ...item, mute: i !== index, solo: false })));
+    } else player.current?.updateMix(mix);
+  }, [mix, playing]);
+  useEffect(() => { player.current?.updateMasterVolume(masterVolume); }, [masterVolume]);
   useEffect(() => { if (!playing) return;const timer = setInterval(() => setPosition(player.current?.position() ?? 0), 80);return () => clearInterval(timer); }, [playing]);
   const stop = useCallback(() => { request.current++;activePlayId.current = null;player.current?.stop();setPlaying(null);setBusy(false);setPosition(0); }, []);
   useEffect(() => {
@@ -90,9 +103,17 @@ export default function Home() {
     const key = JSON.stringify(forScore);let buffer = cache.current.get(key);
     if (!buffer) { buffer = await renderStems(forScore);if (cache.current.size >= 2) cache.current.delete(cache.current.keys().next().value!);cache.current.set(key, buffer); }return buffer;
   }
-  async function play(forScore: Score, id: string) {
+  function isolatedTrackMix(index: number, source = latestMix.current) {
+    return source.map((item, i) => ({ ...item, mute: i !== index, solo: false }));
+  }
+  async function play(forScore: Score, id: string, playbackMix?: Settings[Scene]['mix']) {
     if (playing === id) { stop();return; }stop();activePlayId.current = id;const token = request.current;setBusy(true);setError('');
-    try { await player.current!.unlock();const buffer = await stems(forScore);if (token !== request.current) return;await player.current!.play(buffer, id === 'arrangement' ? latestMix.current : defaultMix(), scoreSeconds(forScore), id === 'arrangement' && loop, () => { setPlaying(null);setPosition(0); });if (token === request.current) setPlaying(id); }
+    try {
+      await player.current!.unlock();const buffer = await stems(forScore);if (token !== request.current) return;
+      const selectedMix = playbackMix ?? (id === 'arrangement' ? latestMix.current : defaultMix());
+      await player.current!.play(buffer, selectedMix, scoreSeconds(forScore), id === 'arrangement' && loop, () => { setPlaying(null);setPosition(0); }, latestMasterVolume.current);
+      if (token === request.current) setPlaying(id);
+    }
     catch (e) { if (token === request.current) setError(e instanceof Error ? e.message : '音频启动失败，请重试。'); }
     finally { if (token === request.current) setBusy(false); }
   }
@@ -217,7 +238,7 @@ export default function Home() {
     try {
       if (kind === 'midi') download(encodeMidi(exportScore, exportMix), 'audio/midi', filename + '.mid');
       else {
-        const source = await stems(exportScore), buffer = await renderMix(source, exportMix);
+        const source = await stems(exportScore), buffer = await renderMix(source, exportMix, latestMasterVolume.current);
         const bytes = encodeWav([buffer.getChannelData(0), buffer.getChannelData(1)], buffer.sampleRate);
         download(bytes, 'audio/wav', filename + '.wav');
         const measurements = Array.from({ length: source.numberOfChannels }, (_, channel) => { const data = source.getChannelData(channel);let power = 0;for (const sample of data) power += sample * sample;return Math.sqrt(power / data.length); });
@@ -247,7 +268,7 @@ export default function Home() {
       await play(score, 'arrangement');await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
       const state = actions.current.read() as { error: string; playing: string | null };
       if (state.error || state.playing !== 'arrangement') throw new Error(state.error || 'Playback did not start.');
-      const buffer = await stems(score), mixed = await renderMix(buffer, latestMix.current);
+      const buffer = await stems(score), mixed = await renderMix(buffer, latestMix.current, latestMasterVolume.current);
       const channels = Array.from({ length: buffer.numberOfChannels }, (_, channel) => { const data = buffer.getChannelData(channel);let power = 0, peak = 0;for (let i = 0; i < data.length; i++) { power += data[i] * data[i];peak = Math.max(peak, Math.abs(data[i])); }return { rms: Math.sqrt(power / data.length), peak }; });
       let peak = 0;for (let ch = 0; ch < mixed.numberOfChannels; ch++) for (const sample of mixed.getChannelData(ch)) peak = Math.max(peak, Math.abs(sample));
       return { started: true, seconds: scoreSeconds(score), renderedSeconds: buffer.duration, stems: channels, wavSampleRate: mixed.sampleRate, mixedPeak: peak };
@@ -300,8 +321,8 @@ export default function Home() {
           </TabsContent>
           <TabsContent value="mix" className="editorial-stage-panel">
             <div className="center-heading"><div><h2>最后一点，留给你。</h2><p>{theme?.name} / {SCENES[scene].name} / 四轨编曲</p></div></div>
-            <div className="mix-settings"><label className="tempo-field">速度 BPM<input aria-label="速度 BPM" type="number" min={40} max={200} value={bpm} onChange={e => { stop();setBpm(Math.max(40, Math.min(200, Number(e.target.value) || 100))); }} /></label><label className="voice-field">旋律音色<Select value={voice} onValueChange={v => { stop();setVoice(v as Voice); }}><SelectTrigger aria-label="旋律音色"><SelectValue /></SelectTrigger><SelectContent>{(['keys', 'bell', 'pluck', 'pad'] as Voice[]).map(v => <SelectItem key={v} value={v}>{VOICES[v]}</SelectItem>)}</SelectContent></Select></label></div>
-            {score && <StudioMixer score={score} mix={mix} position={position} playing={playing === 'arrangement'} onMix={setMix} />}
+            <div className="mix-settings"><label className="tempo-field">速度 BPM<input aria-label="速度 BPM" type="number" min={40} max={200} value={bpm} onChange={e => { stop();setBpm(Math.max(40, Math.min(200, Number(e.target.value) || 100))); }} /></label><label className="voice-field">旋律音色<Select value={voice} onValueChange={v => { stop();setVoice(v as Voice); }}><SelectTrigger aria-label="旋律音色"><SelectValue /></SelectTrigger><SelectContent>{(['keys', 'bell', 'pluck', 'pad'] as Voice[]).map(v => <SelectItem key={v} value={v}>{VOICES[v]}</SelectItem>)}</SelectContent></Select></label><label className="master-volume-field"><span>总输出音量 <output>{Math.round(masterVolume * 100)}%</output></span><Slider aria-label="总输出音量" value={[masterVolume * 100]} min={0} max={160} step={1} onValueChange={value => setMasterVolume(value[0] / 100)} /></label></div>
+            {score && <StudioMixer score={score} mix={mix} position={position} playingId={playing} busy={busy} onMix={setMix} onPlayTrack={index => { void play(score, `track-${index}`, isolatedTrackMix(index)); }} />}
             <div className="mix-bottom"><label><Switch aria-label="循环播放" checked={loop} onCheckedChange={v => { stop();setLoop(v); }} />循环播放</label><span>四轨混音 · 实时调整</span></div>
             <div className="studio-export"><button className="quiet-action" onClick={saveVersion}><Save size={15} />保存版本</button><button className="outline-pill" onClick={() => exportAudio('midi')} disabled={busy || exporting}>MIDI<Download size={15} /></button><button className="outline-pill solid" onClick={() => exportAudio('wav')} disabled={busy || exporting}>{exporting ? <LoaderCircle className="spin" size={16} /> : <RollingLabel>导出 WAV</RollingLabel>}<ArrowUpRight size={16} /></button></div><p className="editorial-help">音符网格仅供查看。WAV 使用当前混音，MIDI 音色由播放器决定。</p>
           </TabsContent>

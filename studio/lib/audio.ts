@@ -157,33 +157,38 @@ function impulse(ctx: BaseAudioContext, seconds = 1.45) {
   for (let ch = 0; ch < 2; ch++) { const data = buffer.getChannelData(ch); for (let i = 0; i < length; i++) { const t = 1 - i / length; data[i] = (rng() * 2 - 1) * Math.pow(t, 2.7) * (ch ? .94 : 1); } }
   return buffer;
 }
-function wireMix(ctx: BaseAudioContext, src: AudioBufferSourceNode, mix: Mix) {
-  const split = ctx.createChannelSplitter(4), dry = ctx.createGain(), wet = ctx.createGain(), verb = ctx.createConvolver(), tone = ctx.createBiquadFilter(), compressor = ctx.createDynamicsCompressor();
-  dry.gain.value = .84; wet.gain.value = .15; verb.buffer = impulse(ctx); tone.type = 'lowpass'; tone.frequency.value = 15500; tone.Q.value = .3;
-  compressor.threshold.value = -10; compressor.knee.value = 10; compressor.ratio.value = 5; compressor.attack.value = .008; compressor.release.value = .22;
-  src.connect(split); dry.connect(tone); verb.connect(wet).connect(tone); tone.connect(compressor).connect(ctx.destination);
-  return [0, 1, 2, 3].map(index => {
+function wireMix(ctx: BaseAudioContext, src: AudioBufferSourceNode, mix: Mix, masterVolume = 1) {
+  const split = ctx.createChannelSplitter(4), dry = ctx.createGain(), wet = ctx.createGain(), verb = ctx.createConvolver(), tone = ctx.createBiquadFilter(), makeup = ctx.createGain(), compressor = ctx.createDynamicsCompressor(), master = ctx.createGain();
+  dry.gain.value = .9; wet.gain.value = .17; verb.buffer = impulse(ctx); tone.type = 'lowpass'; tone.frequency.value = 15800; tone.Q.value = .3;
+  // The previous graph was intentionally conservative and sounded noticeably quiet on laptop speakers.
+  // Add gentle makeup gain before compression, then keep a user-controlled master after it.
+  makeup.gain.value = 1.34; compressor.threshold.value = -12; compressor.knee.value = 9; compressor.ratio.value = 4.5; compressor.attack.value = .006; compressor.release.value = .2;
+  master.gain.value = Math.max(0, Math.min(1.6, masterVolume));
+  src.connect(split); dry.connect(tone); verb.connect(wet).connect(tone); tone.connect(makeup).connect(compressor).connect(master).connect(ctx.destination);
+  const gains = [0, 1, 2, 3].map(index => {
     const gain = ctx.createGain(), pan = ctx.createStereoPanner(), send = ctx.createGain(); pan.pan.value = [-.08, -.28, .04, .2][index]; send.gain.value = [.08, .23, .08, .05][index];
     gain.gain.value = activeTrack(mix, index) ? mix[index].volume : 0;
     split.connect(gain, index); gain.connect(pan); pan.connect(dry); pan.connect(send).connect(verb); return gain;
   });
+  return { gains, master };
 }
 export class Player {
-  private ctx: AudioContext | null = null; private source: AudioBufferSourceNode | null = null; private gains: GainNode[] = []; private started = 0; private length = 0; private loopLength = 0; private isLoop = false; private request = 0;
+  private ctx: AudioContext | null = null; private source: AudioBufferSourceNode | null = null; private gains: GainNode[] = []; private master: GainNode | null = null; private started = 0; private length = 0; private loopLength = 0; private isLoop = false; private request = 0;
   async unlock() { this.ctx ??= new AudioContext(); let timeout: ReturnType<typeof setTimeout> | undefined; try { await Promise.race([this.ctx.resume(), new Promise<never>((_, reject) => { timeout = setTimeout(() => reject(new Error('浏览器尚未允许声音，请直接点击页面上的播放按钮。')), 1800); })]); } finally { clearTimeout(timeout); } }
-  async play(buffer: AudioBuffer, mix: Mix, loopBeatsSeconds: number, loop: boolean, onEnd: () => void) {
+  async play(buffer: AudioBuffer, mix: Mix, loopBeatsSeconds: number, loop: boolean, onEnd: () => void, masterVolume = 1) {
     this.stop(); const request = this.request; await this.unlock(); if (request !== this.request) return;
     const ctx = this.ctx!, source = ctx.createBufferSource(); source.buffer = buffer; source.loop = loop; source.loopStart = 0; source.loopEnd = loopBeatsSeconds;
-    this.isLoop = loop; this.loopLength = loopBeatsSeconds; this.length = buffer.duration; this.gains = wireMix(ctx, source, mix); this.source = source; this.started = ctx.currentTime;
+    this.isLoop = loop; this.loopLength = loopBeatsSeconds; this.length = buffer.duration; const graph = wireMix(ctx, source, mix, masterVolume); this.gains = graph.gains; this.master = graph.master; this.source = source; this.started = ctx.currentTime;
     source.onended = () => { if (this.source === source) { this.source = null; source.disconnect(); onEnd(); } }; source.start();
   }
-  updateMix(mix: Mix) { this.gains.forEach((gain, i) => gain.gain.setTargetAtTime(activeTrack(mix, i) ? mix[i].volume : 0, this.ctx!.currentTime, .02)); }
+  updateMix(mix: Mix) { if (!this.ctx) return; this.gains.forEach((gain, i) => gain.gain.setTargetAtTime(activeTrack(mix, i) ? mix[i].volume : 0, this.ctx!.currentTime, .02)); }
+  updateMasterVolume(value: number) { if (this.ctx && this.master) this.master.gain.setTargetAtTime(Math.max(0, Math.min(1.6, value)), this.ctx.currentTime, .02); }
   position() { if (!this.ctx || !this.source) return 0; const time = this.ctx.currentTime - this.started; return this.isLoop ? time % this.loopLength : Math.min(time, this.length); }
-  stop() { this.request++; if (this.source) { const old = this.source; this.source = null; old.onended = null; old.stop(); old.disconnect(); } this.gains.forEach(g => g.disconnect()); this.gains = []; }
+  stop() { this.request++; if (this.source) { const old = this.source; this.source = null; old.onended = null; old.stop(); old.disconnect(); } this.gains.forEach(g => g.disconnect()); this.gains = []; this.master?.disconnect(); this.master = null; }
   async dispose() { this.stop(); await this.ctx?.close(); this.ctx = null; }
 }
-export async function renderMix(stems: AudioBuffer, mix: Mix): Promise<AudioBuffer> {
-  const ctx = new OfflineAudioContext(2, Math.ceil(stems.duration * 44100), 44100), source = ctx.createBufferSource(); source.buffer = stems; wireMix(ctx, source, mix); source.start(); return ctx.startRendering();
+export async function renderMix(stems: AudioBuffer, mix: Mix, masterVolume = 1): Promise<AudioBuffer> {
+  const ctx = new OfflineAudioContext(2, Math.ceil(stems.duration * 44100), 44100), source = ctx.createBufferSource(); source.buffer = stems; wireMix(ctx, source, mix, masterVolume); source.start(); return ctx.startRendering();
 }
 
 export function encodeWav(channels: Float32Array[], sampleRate: number): Uint8Array {

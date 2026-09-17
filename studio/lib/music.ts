@@ -91,7 +91,7 @@ export const MOODS: Record<Mood, { name: string; root: number; scale: number[]; 
   resolute: { name: '坚定 / 冒险', root: 62, scale: [0, 2, 3, 5, 7, 9, 10], hint: 'D 多利亚调式' },
 };
 export const VOICES: Record<Voice, string> = { keys: '柔和电钢琴', bell: '钟琴', pluck: '合成拨弦', pad: '弦乐铺底', bass: '圆润贝斯', drums: '合成鼓组' };
-export const defaultMix = (): Mix => [0.82, 0.58, 0.65, 0.46].map(volume => ({ volume, mute: false, solo: false }));
+export const defaultMix = (): Mix => [1.0, 0.74, 0.82, 0.62].map(volume => ({ volume, mute: false, solo: false }));
 const clamp = (value: number, min = 0, max = 100) => Math.max(min, Math.min(max, value));
 export function hash(text: string): number {
   let value = 2166136261;

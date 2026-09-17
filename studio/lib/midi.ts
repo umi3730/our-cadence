@@ -16,7 +16,7 @@ export function encodeMidi(score: Score, mix: Mix): Uint8Array {
   score.tracks.forEach((track, i) => {
     const channel = track.voice === 'drums' ? 9 : i;
     const name = text(track.name);
-    const data = [0, 0xff, 3, ...vlq(name.length), ...name, 0, 0xc0 | channel, program[track.voice], 0, 0xb0 | channel, 7, Math.round(mix[i].volume * 127)];
+    const data = [0, 0xff, 3, ...vlq(name.length), ...name, 0, 0xc0 | channel, program[track.voice], 0, 0xb0 | channel, 7, Math.max(0, Math.min(127, Math.round(mix[i].volume * 127)))];
     const events: { tick: number; off: boolean; pitch: number; velocity: number }[] = [];
     if (activeTrack(mix, i) && mix[i].volume > 0) for (const n of track.notes) {
       events.push({ tick: Math.round(n.beat * PPQ), off: false, pitch: n.pitch, velocity: Math.max(1, Math.round(n.velocity * 110)) });
