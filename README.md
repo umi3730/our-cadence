@@ -26,6 +26,7 @@ npm run dev
 | `design/brand/` | 字标设计稿和生成说明 |
 | `noise-portfilo copy/` | 原始视觉参考项目，主应用运行不依赖它 |
 | `scripts/package-source.ps1` | 生成用于分享的源码 ZIP |
+| [`修改日志/`](修改日志/README.md) | 按日期保存改动、验证结果、版本位置和待修问题 |
 
 ## 两人协作
 

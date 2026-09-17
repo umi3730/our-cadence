@@ -1,3 +1,4 @@
+import { themePresentation, themeProfileKey } from '../lib/theme-character.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { generateThemes, arrange, defaultMix, SCENES, MOODS, scoreSeconds } from '../lib/music.ts';
@@ -101,4 +102,41 @@ test('malformed, unbounded and future-version imports are rejected before touchi
   }
   assert.throws(() => parseLibrary(' '.repeat(2_000_001)));
   assert.equal(safeFilename('../角色:试音'), '.._角色_试音');
+});
+
+
+test('aggression changes candidate names and persisted character descriptions', () => {
+  const base = { name: 'OC', description: '', mood: 'resolute', music: { energy: 50, warmth: 40, tension: 100, mystery: 100, brightness: 0, elegance: 0, aggression: 0, hue: 270 } };
+  const low = generateThemes(base, 0);
+  const highProfile = { ...base, music: { ...base.music, aggression: 100 } };
+  const high = generateThemes(highProfile, 0);
+  assert.notDeepEqual(low.map(t => t.name), high.map(t => t.name));
+  assert.deepEqual(high.map(t => t.name), ['烈光', '突围', '暗潮']);
+  assert.ok(high.every(t => t.character === 'bold' && t.sourceKey === themeProfileKey(highProfile)));
+  assert.match(themePresentation(high[0].style, high[0].character).description, /高攻击性/);
+  const draft = { ...makeDraft(), profile: highProfile, candidates: high, theme: high[0] };
+  const restored = parseLibrary(JSON.stringify(library(draft, [])));
+  assert.deepEqual(restored.draft.candidates, high);
+});
+
+test('editing parameters leaves existing candidates labelled with their generation inputs', () => {
+  const profile = { ...EXAMPLES[0], music: { energy: 25, warmth: 70, tension: 30, mystery: 45, brightness: 60, elegance: 80, aggression: 10, hue: 200 } };
+  const candidates = generateThemes(profile, 0), originalKey = candidates[0].sourceKey;
+  profile.music.aggression = 100;
+  assert.notEqual(originalKey, themeProfileKey(profile));
+  assert.ok(candidates.every(t => t.character === 'gentle'));
+  const updated = generateThemes(profile, 0);
+  assert.ok(updated.every(t => t.character === 'bold' && t.sourceKey === themeProfileKey(profile)));
+  const reordered = { ...profile, music: Object.fromEntries(Object.entries(profile.music).reverse()) };
+  assert.equal(themeProfileKey(profile), themeProfileKey(reordered));
+});
+
+test('legacy projects without theme character metadata still import', () => {
+  const draft = makeDraft();
+  for (const t of [...draft.candidates, draft.theme]) { delete t.character; delete t.sourceKey; }
+  const restored = parseLibrary(JSON.stringify(library(draft, [])));
+  assert.equal(restored.draft.candidates[0].character, undefined);
+  assert.equal(themePresentation(restored.draft.candidates[0].style).label, '旋律走向');
+  const invalid = structuredClone(draft); invalid.candidates[0].character = 'unsupported';
+  assert.equal(draftSchema.safeParse(invalid).success, false);
 });

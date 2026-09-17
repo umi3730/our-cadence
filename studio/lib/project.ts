@@ -3,7 +3,7 @@ import { defaultMix, SCENES, type Scene, type Profile } from './music.ts';
 
 export const STORAGE_KEY = 'our-cadence.library.v1';
 const noteSchema = z.object({ pitch: z.number().int().min(24).max(108), beat: z.number().finite().min(0).lt(16), duration: z.number().finite().min(0.05).max(4), velocity: z.number().finite().min(0.01).max(1) }).strict().refine(n => n.beat + n.duration <= 16, '主题音符必须位于四小节内');
-export const themeSchema = z.object({ id: z.string().min(1).max(100), name: z.string().min(1).max(40), root: z.number().int().min(48).max(72), scale: z.array(z.number().int().min(0).max(11)).length(7).refine(a => a.every((v, i) => !i || v > a[i - 1]), '音阶应递增'), seed: z.number().int().nonnegative().max(0xffffffff), notes: z.array(noteSchema).min(1).max(64), style: z.enum(['lyrical','driving','atmospheric']).optional(), bpm: z.number().int().min(40).max(200).optional(), progression: z.array(z.number().int().min(0).max(6)).length(4).optional() }).strict();
+export const themeSchema = z.object({ id: z.string().min(1).max(100), name: z.string().min(1).max(40), root: z.number().int().min(48).max(72), scale: z.array(z.number().int().min(0).max(11)).length(7).refine(a => a.every((v, i) => !i || v > a[i - 1]), '音阶应递增'), seed: z.number().int().nonnegative().max(0xffffffff), notes: z.array(noteSchema).min(1).max(64), style: z.enum(['lyrical','driving','atmospheric']).optional(), bpm: z.number().int().min(40).max(200).optional(), progression: z.array(z.number().int().min(0).max(6)).length(4).optional(), character: z.enum(['bold','dark','bright','gentle','balanced']).optional(), sourceKey: z.string().regex(/^[0-9a-f]{1,8}$/).optional() }).strict();
 const musicProfileSchema = z.object({
   energy: z.number().finite().min(0).max(100), warmth: z.number().finite().min(0).max(100), tension: z.number().finite().min(0).max(100), mystery: z.number().finite().min(0).max(100),
   brightness: z.number().finite().min(0).max(100), elegance: z.number().finite().min(0).max(100), aggression: z.number().finite().min(0).max(100), hue: z.number().finite().min(0).max(360),
@@ -20,6 +20,8 @@ const understandingSchema = z.object({
   target: z.object({ energy: z.number().min(0).max(100), warmth: z.number().min(0).max(100), tension: z.number().min(0).max(100), mystery: z.number().min(0).max(100), brightness: z.number().min(0).max(100), elegance: z.number().min(0).max(100), aggression: z.number().min(0).max(100), bpmMin: z.number().min(40).max(210), bpmMax: z.number().min(40).max(220), genres: z.array(z.string().max(80)).max(12), instruments: z.array(z.string().max(80)).max(12), descriptors: z.array(z.string().max(80)).max(12) }).strict(),
 }).strict();
 const imageSchema = z.object({
+  musicBaseline: musicProfileSchema.optional(),
+  storyAnalyzed: z.boolean().optional(),
   fingerprint: z.string().min(1).max(80), thumbnail: z.string().max(900_000), palette: z.array(z.string().regex(/^#[0-9a-fA-F]{6}$/)).max(5),
   visual: z.object({ brightness: z.number().min(0).max(100), saturation: z.number().min(0).max(100), contrast: z.number().min(0).max(100), complexity: z.number().min(0).max(100), warmth: z.number().min(0).max(100) }).strict(),
   backgroundMode: z.enum(['transparent', 'estimated']).optional(),

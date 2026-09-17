@@ -1,3 +1,4 @@
+import { themeCharacter, themePresentation, themeProfileKey, type ThemeCharacter } from './theme-character.ts';
 export type Mood = 'bright' | 'gentle' | 'resolute';
 export type Scene = 'daily' | 'memory' | 'battle';
 export type Voice = 'keys' | 'bell' | 'pluck' | 'pad' | 'bass' | 'drums';
@@ -27,6 +28,8 @@ export type ImageUnderstanding = {
 };
 export type ProfileImage = {
   fingerprint: string;
+  musicBaseline?: MusicProfile;
+  storyAnalyzed?: boolean;
   thumbnail: string;
   palette: string[];
   visual: { brightness: number; saturation: number; contrast: number; complexity: number; warmth: number };
@@ -41,7 +44,7 @@ export type ProfileImage = {
 };
 export type MusicDirection = 'character' | 'daily' | 'memory' | 'battle' | 'mechanical' | 'dreamy' | 'suspense' | 'retro' | 'anime-op';
 export type Profile = { name: string; description: string; mood: Mood; direction?: MusicDirection; music?: MusicProfile; image?: ProfileImage };
-export type Theme = { id: string; name: string; notes: Note[]; root: number; scale: number[]; seed: number; style?: 'lyrical' | 'driving' | 'atmospheric'; bpm?: number; progression?: number[] };
+export type Theme = { id: string; name: string; notes: Note[]; root: number; scale: number[]; seed: number; style?: 'lyrical' | 'driving' | 'atmospheric'; bpm?: number; progression?: number[]; character?: ThemeCharacter; sourceKey?: string };
 export type Track = { id: string; name: string; voice: Voice; notes: Note[] };
 export type Score = { bpm: number; beats: number; tracks: Track[] };
 export type Mix = { volume: number; mute: boolean; solo: boolean }[];
@@ -140,7 +143,7 @@ export function generateThemes(profile: Profile, take: number): Theme[] {
     const palette = MOODS[profile.mood];
     const base = hash(JSON.stringify([profile.name.trim(), profile.description.trim(), profile.mood, take]));
     const fallback: MusicProfile = { energy: 55, warmth: 55, tension: 42, mystery: 42, brightness: 55, elegance: 60, aggression: 28, hue: 180 };
-    return generateThemes({ ...profile, music: fallback }, take).map(theme => ({ ...theme, root: palette.root, scale: [...palette.scale] }));
+    return generateThemes({ ...profile, music: fallback }, take).map(theme => ({ ...theme, root: palette.root, scale: [...palette.scale], sourceKey: themeProfileKey(profile) }));
   }
 
   const meta = musicProfileMeta(music, profile.mood);
@@ -196,7 +199,8 @@ export function generateThemes(profile: Profile, take: number): Theme[] {
         });
       });
     }
-    return { id: `theme-${seed}`, name: arch.name, style: arch.style, bpm: arch.bpm, progression: [...arch.progression], root: meta.root, scale: [...meta.scale], seed, notes };
+    const character = themeCharacter(music);
+    return { id: `theme-${seed}`, name: themePresentation(arch.style, character).name, character, sourceKey: themeProfileKey(profile), style: arch.style, bpm: arch.bpm, progression: [...arch.progression], root: meta.root, scale: [...meta.scale], seed, notes };
   });
 }
 
