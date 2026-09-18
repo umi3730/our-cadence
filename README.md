@@ -1,44 +1,88 @@
 # Our Cadence
 
-为原创角色创建主题旋律，并延展为日常、回忆、战斗场景配乐。目前是浏览器内运行的声音样机，包含官网和创作工作室。
+> 角色的另一种表达。
 
-## 开始开发
+从一张参考图和一段背景故事出发，为原创角色寻找主题旋律，再延展成日常、回忆与战斗配乐。
 
-安装 Node.js 24 和 Git。克隆仓库或解压源码包后，在项目根目录执行：
+**图片与故事 → 音乐性格 → 主题试听 → 场景编曲 → 保存与导出**
+
+![Our Cadence 首页：奶油色背景、蓝紫标题与手绘装饰](docs/screenshots/home.jpg)
+
+## 可以做什么
+
+| 创作环节 | 当前能力 |
+| --- | --- |
+| 认识角色 | 上传参考图片、填写背景故事，结合本地视觉特征与故事关键词分析 |
+| 调整音乐性格 | 能量、温度、张力、神秘、明亮、优雅六项可视化参数 |
+| 寻找主题 | 三个四小节提案，支持试听、换一组与采用主题；调参后自动更新候选 |
+| 延展场景 | 日常、回忆、战斗三种十六小节编曲；旋律、和弦、贝斯、鼓四轨 |
+| 打磨声音 | 七种旋律音色，支持速度、单轨试听、静音／独奏、分轨音量与总音量调整 |
+| 留住作品 | 本地草稿、版本快照、JSON 工程导入导出，以及 MIDI／WAV 导出 |
+| 可选 AI 谱曲 | 配置 API 后，使用 GPT-6 Astra 根据角色故事、可选图片和主题生成四轨乐谱 |
+
+七种旋律音色：柔和钢琴、钟琴、木吉他、弦乐铺底、长笛、小提琴、马林巴。
+
+## 工作室预览
+
+以下为 **2026-09-18 当前版本的真实界面截图**。工作室截图使用本地规则编曲，无需付费模型即可试听。
+
+### 图片与音乐性格
+
+保留角色背景故事，用六项参数调整音乐方向，背景色随参考图片变化。
+
+![参考图片、角色故事与六项音乐参数](docs/screenshots/studio-profile.jpg)
+
+### 同一个角色，三种开场
+
+先听旋律，再选择属于角色的主题；卡片中的音符预览对应实际候选。
+
+![微光、远行与回声三个主题候选](docs/screenshots/studio-themes.jpg)
+
+### 四轨混音与导出
+
+按声部试听、调整音量，完成后导出音乐。下图展示混音台中的旋律、和弦与贝斯部分，鼓轨位于下方。
+
+![四轨混音台局部：音符网格、单轨试听、静音与独奏控制](docs/screenshots/studio-mixer.jpg)
+
+## 本地运行
+
+需要 **Node.js 24** 和 Git。首次安装需要联网。
 
 ```sh
-cd studio
+git clone https://github.com/umi3730/our-cadence.git
+cd our-cadence/studio
 npm run install:ci
 npm run dev
 ```
 
-访问终端打印的地址，通常为 http://localhost:5173；工作室为 `/studio`。首次安装需要联网。普通本地开发无需 API Key、数据库、Cloudflare 账号或 Codex 插件；干净副本自动使用 portable 模式。
+打开终端显示的地址，通常为 `http://localhost:5173`；工作室入口为 `/studio`。
 
-当前支持角色图片与故事分析、三个主题候选、三种场景四轨编曲、混音、版本快照和 JSON / MIDI / WAV 导出。配置官方或公司网关 API Key 后，可在场景页手动请求 GPT-6 Astra 生成分段发展的四轨乐谱，声音仍由现有音源渲染；详见 [谱曲接入说明](studio/design/gpt-composer.md)。数据保存在当前浏览器的 localStorage，不会随 Git 同步给朋友；要分享音乐工程，请在工作室导出 JSON 后由对方导入。登录与云端存档尚未实现。
+**本地规则作曲无需 API Key、数据库、云账号或 Codex 插件。** 默认使用 portable 开发模式。乐器优先加载采样音源，网络不可用时使用内置合成音色。
 
-## 目录
+## 可选 AI 谱曲
 
-| 路径 | 用途 |
-| --- | --- |
-| `studio/` | 主应用、测试、依赖锁文件和运行脚本 |
-| `studio/README.md` | 功能边界、源码入口和脚手架说明 |
-| `Our Cadence-需求与开发路线-v0.1.md` | 早期需求与后续路线；其中“未开发”描述是立项时状态 |
-| `design/brand/` | 字标设计稿和生成说明 |
-| `noise-portfilo copy/` | 原始视觉参考项目，主应用运行不依赖它 |
-| `scripts/package-source.ps1` | 生成用于分享的源码 ZIP |
-| [`修改日志/`](修改日志/README.md) | 按日期保存改动、验证结果、版本位置和待修问题 |
+在 `studio/.env.local` 配置官方或兼容公司网关的 API Key，重启服务后，在场景页点击“生成 AI 编曲”。示例配置见 [studio/.env.example](studio/.env.example)。
 
-## 两人协作
+- AI 谱曲仅在手动点击时调用并消耗相应 API 额度；切换已有乐谱音色、混音与导出在本地完成。
+- AI 输出的是经过校验的音符与段落数据，音频仍由工作室音源渲染。
+- 可以随时切回“规则草稿”；生成失败或取消不会覆盖现有作品。
+- 高级图片语义分析是独立的可选接口，仍使用官方配置；公司网关当前只用于谱曲。
 
-建议主分支使用 `main`，每个功能独立建分支，通过 PR / MR 合并：
+接口、配置和已知边界见 [GPT 谱曲说明](studio/design/gpt-composer.md)。**Suno 尚未接入。**
 
-```sh
-git switch main
-git pull --ff-only
-git switch -c feat/your-feature
-```
+## 数据与项目状态
 
-修改后在 `studio/` 内验证：
+- 草稿和版本保存在当前浏览器的 `localStorage`，不会随 Git 同步，也不是云端存档。
+- 和朋友分享作品：在工作室导出 JSON 工程，由对方导入。
+- API Key 只放服务端本地配置，不进入前端、截图或 Git。
+- 当前仍是声音原型，暂未实现账号登录与云端存档。
+- 最近验证：类型检查、生产构建通过；测试 **21 项中 20 项通过**，另有一项已记录的规则主题调式问题。详情见 [最新改动记录](修改日志/2026-09-18_六维参数与视觉谱曲更新.md)。
+
+## 开发与协作
+
+技术栈：React 19、TypeScript、vinext / Vite、Web Audio、Radix UI、Lottie。
+
+每个功能使用独立分支，在 `studio/` 内验证：
 
 ```sh
 npm run typecheck
@@ -46,30 +90,18 @@ npm test
 npm run build
 ```
 
-然后回到仓库根目录，检查差异并提交相关文件。依赖有变化时同时提交 `package.json` 和 `package-lock.json`；不要提交 `node_modules`、构建产物或个人环境配置。
+提交源码、必要素材和依赖锁文件；个人配置、`node_modules`、构建产物与试听导出文件不入库。
 
-## 首次上传
+| 路径 | 用途 |
+| --- | --- |
+| [studio/](studio/) | 应用源码、测试与运行脚本 |
+| [studio/README.md](studio/README.md) | 功能边界与开发说明 |
+| [docs/screenshots/](docs/screenshots/) | GitHub 项目预览截图 |
+| [design/brand/](design/brand/) | Logo 设计稿与说明 |
+| [design/assets/](design/assets/) | 装饰素材来源与授权记录 |
+| [修改日志/](修改日志/) | 改动、验证结果与已知问题 |
+| [需求与开发路线](Our%20Cadence-需求与开发路线-v0.1.md) | 早期需求与后续方向，以当前源码和修改日志为准 |
 
-在 GitHub / GitLab 新建一个空仓库。源码 ZIP 不包含 `.git`，解压后需要初始化；本目录若已初始化，可跳过 `git init`。
+字体与第三方素材沿用各自许可证，授权文件随素材保留，具体见 [素材说明](design/assets/README.md) 与 [字体来源](studio/public/fonts/GlowSans-SOURCE.md)。
 
-```sh
-git init -b main
-git status --short
-git add .
-git diff --cached --stat
-git commit -m "Initial Our Cadence source"
-git remote add origin <你的仓库地址>
-git push -u origin main
-```
-
-朋友获得仓库访问权限后，克隆仓库并按“开始开发”操作即可。
-
-## 重新打包
-
-在已初始化的仓库根目录用 PowerShell 执行：
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts/package-source.ps1
-```
-
-ZIP 输出到 `releases/`，按 Git 忽略规则收集当前源码，包含尚未提交的新文件，不包含 Git 历史。文件路径清单与 SHA-256 校验值一起生成。打包前请先检查 `git status`，确认当前文件都适合分享。
+需要打包分享源码时，可在项目根目录运行 `powershell -ExecutionPolicy Bypass -File scripts/package-source.ps1`，输出位于被 Git 忽略的 `releases/`。
