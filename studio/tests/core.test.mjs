@@ -81,6 +81,18 @@ test('MIDI respects mute and solo; silence still retains named tracks', () => {
   mix[2].mute = true;parsed = readMidi(encodeMidi(score, mix));assert.ok(parsed.tracks.slice(1).every(t => !t.some(e => e.kind === 9 && !e.meta)));
 });
 
+test('instrument choices round-trip and MIDI programs match the sampled instruments', () => {
+  for (const [voice, program] of Object.entries({ keys: 0, bell: 8, pluck: 25, pad: 48, flute: 73, violin: 40, marimba: 12 })) {
+    const draft = makeDraft();draft.settings.daily.voice = voice;
+    const restored = parseLibrary(JSON.stringify(library(draft, [])));
+    assert.equal(restored.draft.settings.daily.voice, voice);
+    const score = arrange(draft.theme, 'daily', 100, voice);
+    const midi = readMidi(encodeMidi(score, defaultMix()));
+    assert.equal(midi.tracks[1].find(e => !e.meta && e.kind === 12).data[0], program);
+    assert.equal(midi.tracks[1].filter(e => !e.meta && e.kind === 9).length, score.tracks[0].notes.length);
+  }
+});
+
 test('WAV is interleaved signed 16-bit PCM with valid sizes and bounded samples', () => {
   const bytes = encodeWav([new Float32Array([0, 1, -1, 2]), new Float32Array([0.25, -0.25, 0, -2])], 44100), view = new DataView(bytes.buffer);
   assert.equal(new TextDecoder().decode(bytes.slice(0, 4)), 'RIFF');assert.equal(new TextDecoder().decode(bytes.slice(8, 12)), 'WAVE');assert.equal(view.getUint32(4, true) + 8, bytes.length);assert.equal(view.getUint16(22, true), 2);assert.equal(view.getUint32(24, true), 44100);assert.equal(view.getUint32(40, true), 16);
@@ -113,7 +125,7 @@ test('aggression changes candidate names and persisted character descriptions', 
   assert.notDeepEqual(low.map(t => t.name), high.map(t => t.name));
   assert.deepEqual(high.map(t => t.name), ['烈光', '突围', '暗潮']);
   assert.ok(high.every(t => t.character === 'bold' && t.sourceKey === themeProfileKey(highProfile)));
-  assert.match(themePresentation(high[0].style, high[0].character).description, /高攻击性/);
+  assert.match(themePresentation(high[0].style, high[0].character).description, /鲜明有力/);
   const draft = { ...makeDraft(), profile: highProfile, candidates: high, theme: high[0] };
   const restored = parseLibrary(JSON.stringify(library(draft, [])));
   assert.deepEqual(restored.draft.candidates, high);

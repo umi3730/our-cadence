@@ -8,6 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Player, renderStems, renderMix, encodeWav } from '@/lib/audio';
 import { encodeMidi } from '@/lib/midi';
+import { AIComposer } from './ai-composer';
+import { compositionKey, compositionScore, savedCompositionSchema, type AIScores } from '@/lib/ai-composition';
+import { mixForPlayback, readMasterVolume } from '@/lib/playback-settings';
 import { STORAGE_KEY, defaultSettings, parseLibrary, library, snapshot, download, safeFilename, type Draft, type Snapshot, type Settings } from '@/lib/project';
 import '@/app/studio.css';
 import { EditorialHeader, PageDial, RollingLabel } from './editorial-ui';
@@ -22,7 +25,7 @@ import { themeProfileKey } from '@/lib/theme-character';
 import { StudioProfile } from './studio-profile';
 import { CharacterBrief, CharacterAnalysisProgress, type AnalysisPhase } from './character-brief';
 import { musicWithStory } from '@/lib/character-story';
-import { SCENES, VOICES, arrange, defaultMix, displayTime, generateThemes, musicProfileMeta, scoreSeconds, suggestedMood, themeScore, type ImageUnderstanding, type MusicProfile, type Profile, type Scene, type Theme, type Score, type Voice } from '@/lib/music';
+import { SCENES, VOICES, MELODY_VOICES, arrange, defaultMix, displayTime, generateThemes, musicProfileMeta, scoreSeconds, suggestedMood, themeScore, type ImageUnderstanding, type MusicProfile, type Profile, type Scene, type Theme, type Score, type Voice } from '@/lib/music';
 
 const initialProfile: Profile = { name: '', description: '', mood: 'bright' };
 export default function Home() {
@@ -32,6 +35,12 @@ export default function Home() {
   const [candidates, setCandidates] = useState(() => generateThemes(initialProfile, 0));
   const needsGeneration = !!profile.music && candidates.some(candidate => candidate.sourceKey !== themeProfileKey(profile));
   const [theme, setTheme] = useState<Theme | null>(null);
+  const [aiScores, setAiScores] = useState<AIScores>({});
+  const [arrangementMode, setArrangementMode] = useState<'rules' | 'ai'>('rules');
+  const [aiAvailable, setAiAvailable] = useState<boolean | null>(null), [aiBusy, setAiBusy] = useState(false), [aiError, setAiError] = useState('');
+  const [aiProviderLabel, setAiProviderLabel] = useState('');
+  const aiRequest = useRef(0), aiController = useRef<AbortController | null>(null);
+  const [masterReady, setMasterReady] = useState(false);
   const [scene, setScene] = useState<Scene>('daily'), [settings, setSettings] = useState(defaultSettings);
   const { bpm, voice, mix } = settings[scene];
   const setBpm = (bpm: number) => setSettings(prev => ({ ...prev, [scene]: { ...prev[scene], bpm } }));
@@ -52,9 +61,15 @@ export default function Home() {
   const activePlayId = useRef<string | null>(null);
   const latestMix = useRef(mix);latestMix.current = mix;
   const latestMasterVolume = useRef(masterVolume);latestMasterVolume.current = masterVolume;
-  const score = useMemo(() => theme ? arrange(theme, scene, bpm, voice) : null, [theme, scene, bpm, voice]);
-  const draft = useMemo<Draft>(() => ({ profile, take, candidates, theme, scene, settings, loop }), [profile, take, candidates, theme, scene, settings, loop]);
-  function restore(next: Draft) { analysisRequest.current++;analysisController.current?.abort();setAnalyzingImage(false);setAnalysisPhase(null);stop();setImagePreviewUrl('');setVisionState(next.profile.image?.understanding ? 'ready' : 'idle');setProfile(next.profile);setTake(next.take);setCandidates(next.candidates);setTheme(next.theme);setScene(next.scene);setSettings(next.settings);setLoop(next.loop); }
+  const aiInputKey = theme ? compositionKey(profile, theme, scene) : null;
+  const latestAIKey = useRef(aiInputKey);latestAIKey.current = aiInputKey;
+  const savedAI = aiScores[scene];
+  const aiStale = !!savedAI && savedAI.sourceKey !== aiInputKey;
+  const usingAI = arrangementMode === 'ai' && !!savedAI && !aiStale;
+  const score = useMemo(() => usingAI && savedAI ? compositionScore(savedAI, bpm, voice) : theme ? arrange(theme, scene, bpm, voice) : null, [usingAI, savedAI, theme, scene, bpm, voice]);
+  const draft = useMemo<Draft>(() => ({ profile, take, candidates, theme, scene, settings, loop, ...(Object.keys(aiScores).length ? { aiScores, arrangementMode } : {}) }), [profile, take, candidates, theme, scene, settings, loop, aiScores, arrangementMode]);
+  const latestLibrary = useRef({ draft, versions });latestLibrary.current = { draft, versions };
+  function restore(next: Draft) { cancelComposer();setAiScores(next.aiScores ?? {});setArrangementMode(next.arrangementMode ?? 'rules'); analysisRequest.current++;analysisController.current?.abort();setAnalyzingImage(false);setAnalysisPhase(null);stop();setImagePreviewUrl('');setVisionState(next.profile.image?.understanding ? 'ready' : 'idle');setProfile(next.profile);setTake(next.take);setCandidates(next.candidates);setTheme(next.theme);setScene(next.scene);setSettings(next.settings);setLoop(next.loop); }
   useEffect(() => {
     try { const raw = localStorage.getItem(STORAGE_KEY);if (raw) { const stored = parseLibrary(raw);restore(stored.draft);setVersions(stored.versions); } }
     catch { storageAllowed.current = false;setSaveState('自动保存暂停：旧存档无法读取，原数据未改写。请导出工程保留当前创作。'); }
@@ -75,20 +90,53 @@ export default function Home() {
   }, [draft, versions, ready]);
   useEffect(() => { const audio = new Player();player.current = audio;return () => { request.current++;void audio.dispose(); }; }, []);
   useEffect(() => {
-    try { const saved = Number(localStorage.getItem('our-cadence.master-volume.v1')); if (Number.isFinite(saved) && saved >= 0 && saved <= 1.6) setMasterVolume(saved); } catch { /* optional preference */ }
+    try { setMasterVolume(readMasterVolume(localStorage.getItem('our-cadence.master-volume.v1'))); } catch { /* optional preference */ }
+    setMasterReady(true);
   }, []);
-  useEffect(() => { try { localStorage.setItem('our-cadence.master-volume.v1', String(masterVolume)); } catch { /* optional preference */ } }, [masterVolume]);
+  useEffect(() => { if (!masterReady) return;try { localStorage.setItem('our-cadence.master-volume.v1', String(masterVolume)); } catch { /* optional preference */ } }, [masterVolume, masterReady]);
   useEffect(() => () => { analysisRequest.current++;analysisController.current?.abort(); }, []);
   useEffect(() => () => { if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl); }, [imagePreviewUrl]);
-  useEffect(() => {
-    if (playing?.startsWith('track-')) {
-      const index = Number(playing.slice(6));
-      player.current?.updateMix(mix.map((item, i) => ({ ...item, mute: i !== index, solo: false })));
-    } else player.current?.updateMix(mix);
-  }, [mix, playing]);
+  useEffect(() => { player.current?.updateMix(mixForPlayback(playing, mix)); }, [mix, playing]);
   useEffect(() => { player.current?.updateMasterVolume(masterVolume); }, [masterVolume]);
   useEffect(() => { if (!playing) return;const timer = setInterval(() => setPosition(player.current?.position() ?? 0), 80);return () => clearInterval(timer); }, [playing]);
   const stop = useCallback(() => { request.current++;activePlayId.current = null;player.current?.stop();setPlaying(null);setBusy(false);setPosition(0); }, []);
+  const cancelComposer = useCallback(() => { aiRequest.current++;aiController.current?.abort();setAiBusy(false); }, []);
+  const refreshComposer = useCallback(async () => {
+    try { const response = await fetch('/api/compose'); const data = await response.json() as { available?: boolean; providerLabel?: string };setAiAvailable(response.ok && data.available === true);setAiProviderLabel(data.providerLabel ?? ''); }
+    catch { setAiAvailable(false); }
+  }, []);
+  useEffect(() => { void refreshComposer(); }, [refreshComposer]);
+  useEffect(() => { cancelComposer();setAiError(''); }, [aiInputKey, cancelComposer]);
+  useEffect(() => () => { aiRequest.current++;aiController.current?.abort(); }, []);
+  useEffect(() => { stop(); }, [usingAI, aiStale, stop]);
+  async function generateAIComposition() {
+    if (!theme || aiBusy || !aiInputKey) return;
+    if (aiScores[scene] && versions.length >= 40) { setAiError('版本记录已满，请先整理版本，当前 AI 乐谱未改变。');return; }
+    const sourceKey = aiInputKey;
+    cancelComposer();const token = aiRequest.current, controller = new AbortController();aiController.current = controller;
+    setAiBusy(true);setAiError('');
+    try {
+      const response = await fetch('/api/compose', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ profile, theme, scene, bpm, voice }), signal: controller.signal });
+      const data = await response.json() as { error?: string; composition?: unknown };
+      if (!response.ok) throw new Error(data.error || 'AI 谱曲失败，当前作品已保留。');
+      const composition = savedCompositionSchema.parse(data.composition);
+      if (token !== aiRequest.current || sourceKey !== latestAIKey.current) return;
+      if (composition.sourceKey !== sourceKey || composition.scene !== scene) throw new Error('乐谱与当前角色或场景不一致，未应用。');
+      const current = latestLibrary.current;
+      const previous = current.draft.aiScores?.[scene];
+      if (previous && current.versions.length >= 40) throw new Error('版本记录已满，未覆盖原 AI 乐谱。');
+      const nextVersions = previous ? [snapshot(current.draft, 'AI 重新谱曲前'), ...current.versions] : current.versions;
+      const nextScores = { ...current.draft.aiScores, [scene]: composition };
+      const nextDraft = { ...current.draft, aiScores: nextScores, arrangementMode: 'ai' as const };
+      if (new TextEncoder().encode(JSON.stringify(library(nextDraft, nextVersions))).length > 6_000_000) throw new Error('工程体积超过导入上限，未覆盖当前作品。请先备份并整理版本。');
+      stop();setAiScores(nextScores);setArrangementMode('ai');setVersions(nextVersions);
+      setNotice(`「${composition.title}」已准备好，四轨试听和导出使用这份 AI 乐谱。`);
+    } catch (e) {
+      if (token !== aiRequest.current || controller.signal.aborted) return;
+      setAiError(e instanceof Error ? e.message : 'AI 谱曲失败，当前作品已保留。');
+    } finally { if (token === aiRequest.current) setAiBusy(false); }
+  }
+
   useEffect(() => {
     if (!ready || analyzingImage || !profile.music || !needsGeneration) return;
     const timer = setTimeout(() => {
@@ -110,7 +158,7 @@ export default function Home() {
     if (playing === id) { stop();return; }stop();activePlayId.current = id;const token = request.current;setBusy(true);setError('');
     try {
       await player.current!.unlock();const buffer = await stems(forScore);if (token !== request.current) return;
-      const selectedMix = playbackMix ?? (id === 'arrangement' ? latestMix.current : defaultMix());
+      const selectedMix = playbackMix ?? mixForPlayback(id, latestMix.current);
       await player.current!.play(buffer, selectedMix, scoreSeconds(forScore), id === 'arrangement' && loop, () => { setPlaying(null);setPosition(0); }, latestMasterVolume.current);
       if (token === request.current) setPlaying(id);
     }
@@ -215,12 +263,14 @@ export default function Home() {
   function changeScene(next: Scene) { stop();setScene(next); }
   function preserve(reason: string): boolean {
     if (versions.length >= 40) { setError('已保存 40 个版本。请先导出工程备份；本轮不会自动删除旧版本。');return false; }
-    setVersions(prev => [snapshot(draft, reason), ...prev]);return true;
+    const next = [snapshot(draft, reason), ...versions];
+    if (new TextEncoder().encode(JSON.stringify(library(draft, next))).length > 6_000_000) { setError('工程体积已到上限，请先导出备份；未新增版本。');return false; }
+    setVersions(next);return true;
   }
   function choose(next: Theme) { if (theme && !preserve('切换主题前')) return;stop();setTheme(next);setNotice(theme ? '旧主题与编曲已保留到版本记录。' : '主题已选定，试试三种场景。'); }
   function saveVersion() { if (preserve('手动保存')) setNotice('已创建不可变版本，可从版本记录重新打开。'); }
   function openVersion(id: string) { const saved = versions.find(v => v.id === id);if (saved && preserve('恢复版本前')) { restore(structuredClone(saved.draft));setNotice('已恢复保存的实际音符与参数，没有重新生成。'); } }
-  function exportProject() { download(JSON.stringify(library(draft, versions), null, 2), 'application/json', `${safeFilename(profile.name)}-OurCadence.json`);setNotice('工程备份已准备，包含草稿、主题音符和保存的版本。'); }
+  function exportProject() { download(JSON.stringify(library(draft, versions)), 'application/json', `${safeFilename(profile.name)}-OurCadence.json`);setNotice('工程备份已准备，包含草稿、主题音符和保存的版本。'); }
   async function importProject(file?: File) {
     if (!file) return;
     try {
@@ -234,11 +284,11 @@ export default function Home() {
   }
   async function exportAudio(kind: 'midi' | 'wav') {
     if (!score) return;setExporting(true);setError('');
-    const exportScore = score, exportMix = structuredClone(mix), filename = `${safeFilename(profile.name)}-${SCENES[scene].name}-${bpm}BPM`;
+    const exportScore = score, exportMix = structuredClone(mix), exportMaster = masterVolume, filename = `${safeFilename(profile.name)}-${SCENES[scene].name}-${bpm}BPM`;
     try {
       if (kind === 'midi') download(encodeMidi(exportScore, exportMix), 'audio/midi', filename + '.mid');
       else {
-        const source = await stems(exportScore), buffer = await renderMix(source, exportMix, latestMasterVolume.current);
+        const source = await stems(exportScore), buffer = await renderMix(source, exportMix, exportMaster);
         const bytes = encodeWav([buffer.getChannelData(0), buffer.getChannelData(1)], buffer.sampleRate);
         download(bytes, 'audio/wav', filename + '.wav');
         const measurements = Array.from({ length: source.numberOfChannels }, (_, channel) => { const data = source.getChannelData(channel);let power = 0;for (const sample of data) power += sample * sample;return Math.sqrt(power / data.length); });
@@ -252,7 +302,7 @@ export default function Home() {
   }
   const actions = useRef({ read: () => ({} as unknown), configure: async (_input: unknown): Promise<unknown> => ({}), play: async (): Promise<unknown> => ({}), exportWav: async (): Promise<unknown> => ({}), stop: () => ({} as unknown) });
   actions.current = {
-    read: () => ({ ready, character: profile.name, themes: candidates.map(t => ({ id: t.id, name: t.name })), themeId: theme?.id ?? null, scene, bpm, voice, playing, busy, savedVersions: versions.length, error }),
+    read: () => ({ masterVolume, composerAvailable: aiAvailable, composing: aiBusy, arrangementSource: usingAI ? 'gpt-6-astra' : 'rules', ready, character: profile.name, themes: candidates.map(t => ({ id: t.id, name: t.name })), themeId: theme?.id ?? null, scene, bpm, voice, playing, busy, savedVersions: versions.length, error }),
     configure: async input => {
       if (!ready || busy) throw new Error('The workspace is not ready.');
       if (!input || typeof input !== 'object') throw new Error('Expected a themeId and scene.');
@@ -279,7 +329,7 @@ export default function Home() {
   useEffect(() => registerMusicTools({ read: () => actions.current.read(), configure: input => actions.current.configure(input), play: () => actions.current.play(), exportWav: () => actions.current.exportWav(), stop: () => actions.current.stop() }), []);
   const auditionTheme = candidates.find(candidate => candidate.id === playing);
   const duration = auditionTheme ? scoreSeconds(themeScore(auditionTheme)) : score ? scoreSeconds(score) : 0;
-  const currentTitle = auditionTheme?.name ?? theme?.name ?? '选择一段旋律';
+  const currentTitle = auditionTheme?.name ?? (usingAI ? savedAI?.title : theme?.name) ?? '选择一段旋律';
   const stages = ['theme', 'scene', 'mix'];
   const stageIndex = stages.indexOf(stage);
   const stageNames = ['选择主题', '场景编曲', '调整与导出'];
@@ -314,14 +364,17 @@ export default function Home() {
             </>}
           </TabsContent>
           <TabsContent value="scene" className="editorial-stage-panel">
-            <div className="center-heading"><div><h2>让故事继续发生。</h2><p>主题音符不变，配器与伴奏随场景变化。</p></div></div>
+            <div className="center-heading"><div><h2>让故事继续发生。</h2><p>规则草稿延续主题，AI 编曲加入段落发展。</p></div></div>
             <div className="scene-options">{(Object.keys(SCENES) as Scene[]).map((id, index) => <button key={id} className={`editorial-scene ${scene === id ? 'is-selected' : ''}`} aria-pressed={scene === id} onClick={() => changeScene(id)}><span className="scene-number">0{index + 1}</span><span className="scene-word">{['Everyday', 'Memory', 'Battle'][index]}</span><span className="scene-chinese">{SCENES[id].name} / {settings[id].bpm} BPM</span><span className="scene-detail">{SCENES[id].description}</span><span className="scene-check">{scene === id ? <Check size={20} /> : <ArrowUpRight size={20} />}</span></button>)}</div>
-            <div className="scene-audition"><span>{theme?.name} · {SCENES[scene].name}<small>4 轨 / 16 小节 / {score ? displayTime(scoreSeconds(score)) : '00:00'}</small></span><button className="round-audition" onClick={() => score && play(score, 'arrangement')} disabled={busy} aria-label="试听当前场景">{playing === 'arrangement' ? <Square size={15} fill="currentColor" /> : <Play size={16} fill="currentColor" />}</button></div>
+            <AIComposer providerLabel={aiProviderLabel} available={aiAvailable} busy={aiBusy} hasTheme={!!theme} hasImage={!!profile.image?.thumbnail} composition={savedAI} stale={aiStale} mode={usingAI ? 'ai' : 'rules'} error={aiError} sceneName={SCENES[scene].name} onGenerate={() => { void generateAIComposition(); }} onCancel={cancelComposer} onMode={mode => { stop();setArrangementMode(mode); }} onRefresh={() => { void refreshComposer(); }} />
+            <div className="scene-audition"><span>{usingAI ? savedAI?.title : theme?.name} · {SCENES[scene].name}<small>4 轨 / 16 小节 / {score ? displayTime(scoreSeconds(score)) : '00:00'}</small></span><button className="round-audition" onClick={() => score && play(score, 'arrangement')} disabled={busy} aria-label="试听当前场景">{playing === 'arrangement' ? <Square size={15} fill="currentColor" /> : <Play size={16} fill="currentColor" />}</button></div>
             <div className="center-next"><p>三种场景分别记住你的调整。</p><button className="outline-pill" onClick={() => setStage('mix')}><RollingLabel>调整与导出</RollingLabel><ArrowUpRight size={16} /></button></div>
           </TabsContent>
           <TabsContent value="mix" className="editorial-stage-panel">
-            <div className="center-heading"><div><h2>最后一点，留给你。</h2><p>{theme?.name} / {SCENES[scene].name} / 四轨编曲</p></div></div>
-            <div className="mix-settings"><label className="tempo-field">速度 BPM<input aria-label="速度 BPM" type="number" min={40} max={200} value={bpm} onChange={e => { stop();setBpm(Math.max(40, Math.min(200, Number(e.target.value) || 100))); }} /></label><label className="voice-field">旋律音色<Select value={voice} onValueChange={v => { stop();setVoice(v as Voice); }}><SelectTrigger aria-label="旋律音色"><SelectValue /></SelectTrigger><SelectContent>{(['keys', 'bell', 'pluck', 'pad'] as Voice[]).map(v => <SelectItem key={v} value={v}>{VOICES[v]}</SelectItem>)}</SelectContent></Select></label><label className="master-volume-field"><span>总输出音量 <output>{Math.round(masterVolume * 100)}%</output></span><Slider aria-label="总输出音量" value={[masterVolume * 100]} min={0} max={160} step={1} onValueChange={value => setMasterVolume(value[0] / 100)} /></label></div>
+            <div className="center-heading"><div><h2>最后一点，留给你。</h2><p>{usingAI ? savedAI?.title : theme?.name} / {SCENES[scene].name} / 四轨编曲</p></div></div>
+            <div className="mix-settings"><label className="tempo-field">速度 BPM<input aria-label="速度 BPM" type="number" min={40} max={200} value={bpm} onChange={e => { stop();setBpm(Math.max(40, Math.min(200, Number(e.target.value) || 100))); }} /></label><label className="voice-field">旋律音色<Select value={voice} onValueChange={v => { stop();setVoice(v as Voice); }}><SelectTrigger aria-label="旋律音色"><SelectValue /></SelectTrigger><SelectContent>{MELODY_VOICES.map(v => <SelectItem key={v} value={v}>{VOICES[v]}</SelectItem>)}</SelectContent></Select></label><label className="master-volume-field"><span>总输出音量 <output>{Math.round(masterVolume * 100)}%</output></span><Slider aria-label="总输出音量" value={[masterVolume * 100]} min={0} max={160} step={1} onValueChange={value => setMasterVolume(value[0] / 100)} /></label></div>
+            {masterVolume === 0 && <p className="editorial-help">总输出音量为 0，调高后即可试听。</p>}
+            {usingAI && savedAI && <p className="ai-score-source">GPT-6 Astra · {savedAI.title} · 四段发展</p>}
             {score && <StudioMixer score={score} mix={mix} position={position} playingId={playing} busy={busy} onMix={setMix} onPlayTrack={index => { void play(score, `track-${index}`, isolatedTrackMix(index)); }} />}
             <div className="mix-bottom"><label><Switch aria-label="循环播放" checked={loop} onCheckedChange={v => { stop();setLoop(v); }} />循环播放</label><span>四轨混音 · 实时调整</span></div>
             <div className="studio-export"><button className="quiet-action" onClick={saveVersion}><Save size={15} />保存版本</button><button className="outline-pill" onClick={() => exportAudio('midi')} disabled={busy || exporting}>MIDI<Download size={15} /></button><button className="outline-pill solid" onClick={() => exportAudio('wav')} disabled={busy || exporting}>{exporting ? <LoaderCircle className="spin" size={16} /> : <RollingLabel>导出 WAV</RollingLabel>}<ArrowUpRight size={16} /></button></div><p className="editorial-help">音符网格仅供查看。WAV 使用当前混音，MIDI 音色由播放器决定。</p>

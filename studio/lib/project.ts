@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { defaultMix, SCENES, type Scene, type Profile } from './music.ts';
+import { defaultMix, SCENES, MELODY_VOICES, type Scene, type Profile } from './music.ts';
+import { aiScoresSchema } from './ai-composition.ts';
 
 export const STORAGE_KEY = 'our-cadence.library.v1';
 const noteSchema = z.object({ pitch: z.number().int().min(24).max(108), beat: z.number().finite().min(0).lt(16), duration: z.number().finite().min(0.05).max(4), velocity: z.number().finite().min(0.01).max(1) }).strict().refine(n => n.beat + n.duration <= 16, '主题音符必须位于四小节内');
@@ -31,8 +32,8 @@ const imageSchema = z.object({
 }).strict();
 export const profileSchema = z.object({ name: z.string().max(40), description: z.string().max(600), mood: z.enum(['bright', 'gentle', 'resolute']), direction: z.enum(['character', 'daily', 'memory', 'battle', 'mechanical', 'dreamy', 'suspense', 'retro', 'anime-op']).optional(), music: musicProfileSchema.optional(), image: imageSchema.optional() }).strict();
 const mixSchema = z.array(z.object({ volume: z.number().finite().min(0).max(1.5), mute: z.boolean(), solo: z.boolean() }).strict()).length(4);
-const settingSchema = z.object({ bpm: z.number().int().min(40).max(200), voice: z.enum(['keys', 'bell', 'pluck', 'pad']), mix: mixSchema }).strict();
-export const draftSchema = z.object({ profile: profileSchema, take: z.number().int().min(0).max(1_000_000), candidates: z.array(themeSchema).length(3), theme: themeSchema.nullable(), scene: z.enum(['daily', 'memory', 'battle']), settings: z.object({ daily: settingSchema, memory: settingSchema, battle: settingSchema }).strict(), loop: z.boolean() }).strict();
+const settingSchema = z.object({ bpm: z.number().int().min(40).max(200), voice: z.enum(MELODY_VOICES), mix: mixSchema }).strict();
+export const draftSchema = z.object({ profile: profileSchema, take: z.number().int().min(0).max(1_000_000), candidates: z.array(themeSchema).length(3), theme: themeSchema.nullable(), scene: z.enum(['daily', 'memory', 'battle']), settings: z.object({ daily: settingSchema, memory: settingSchema, battle: settingSchema }).strict(), loop: z.boolean(), aiScores: aiScoresSchema.optional(), arrangementMode: z.enum(['rules', 'ai']).optional() }).strict();
 export type Draft = z.infer<typeof draftSchema>;
 export type Settings = Draft['settings'];
 const snapshotSchema = z.object({ id: z.string().min(1).max(100), savedAt: z.string().datetime(), label: z.string().min(1).max(100), draft: draftSchema }).strict();

@@ -14,7 +14,7 @@ npm run dev
 
 访问终端打印的地址，通常为 http://localhost:5173；工作室为 `/studio`。首次安装需要联网。普通本地开发无需 API Key、数据库、Cloudflare 账号或 Codex 插件；干净副本自动使用 portable 模式。
 
-当前支持角色设定、三个主题候选、三种场景四轨编曲、混音、版本快照和 JSON / MIDI / WAV 导出。数据保存在当前浏览器的 localStorage，不会随 Git 同步给朋友；要分享音乐工程，请在工作室导出 JSON 后由对方导入。图片分析、AI 成曲、登录和云端存档尚未实现。
+当前支持角色图片与故事分析、三个主题候选、三种场景四轨编曲、混音、版本快照和 JSON / MIDI / WAV 导出。配置官方或公司网关 API Key 后，可在场景页手动请求 GPT-6 Astra 生成分段发展的四轨乐谱，声音仍由现有音源渲染；详见 [谱曲接入说明](studio/design/gpt-composer.md)。数据保存在当前浏览器的 localStorage，不会随 Git 同步给朋友；要分享音乐工程，请在工作室导出 JSON 后由对方导入。登录与云端存档尚未实现。
 
 ## 目录
 

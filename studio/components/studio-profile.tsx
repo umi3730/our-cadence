@@ -1,15 +1,15 @@
 'use client';
 
 import { useId } from 'react';
-import { ArrowUpRight, ChevronDown, ImagePlus, LoaderCircle, Music2, SlidersHorizontal } from 'lucide-react';
+import { ChevronDown, ImagePlus, LoaderCircle, Music2, Shuffle, SlidersHorizontal } from 'lucide-react';
 import { Slider as SliderPrimitive } from 'radix-ui';
 import { MUSIC_DIMENSIONS, MUSIC_DIMENSION_EFFECTS, musicProfileMeta, type MusicProfile, type Profile } from '@/lib/music';
 import { musicWithStory } from '@/lib/character-story';
 
-type Dimension = keyof Omit<MusicProfile, 'hue'>;
+type Dimension = keyof Omit<MusicProfile, 'hue' | 'aggression'>;
 const CHANNEL_NAMES: Record<Dimension, string> = {
   energy: 'ENERGY', warmth: 'WARMTH', tension: 'TENSION', mystery: 'MYSTERY',
-  brightness: 'BRIGHTNESS', elegance: 'ELEGANCE', aggression: 'ATTACK',
+  brightness: 'BRIGHTNESS', elegance: 'ELEGANCE',
 };
 type ProfileProps = {
   profile: Profile;
@@ -52,7 +52,6 @@ export function StudioProfile({ profile, previewUrl, analyzing, busy, visionStat
         <div className="sound-eyebrow"><span>02 / MUSIC PROFILE</span>{music && <SlidersHorizontal size={15} aria-hidden="true" />}</div>
         <div className="sound-profile-title"><h3>{music ? '你的音乐性格' : '从画面，到旋律。'}</h3><p>{music ? strongest.map(item => item.high).join(' · ') : '上传角色、插画或风景，找到属于它的声音。'}</p></div>
         {music && meta ? <>
-          <div className="sound-meta"><span><b>{meta.bpm}</b> BPM</span><span>{meta.scaleName}</span><span>{meta.texture}</span></div>
           <div className="sound-meter-deck">
           <div className="sound-meter-caption" aria-hidden="true"><span>CHARACTER / MIX</span><span>00 — 100</span></div>
           <div className="sound-bars" aria-label="音乐参数，范围 0 至 100">
@@ -67,18 +66,19 @@ export function StudioProfile({ profile, previewUrl, analyzing, busy, visionStat
           </div>
           <div className="sound-chart-legend"><span>拖动条形图微调</span><span>弱 0 — 100 强</span></div>
           </div>
-        </> : <div className="sound-empty-guide"><div className="sound-empty-bars" aria-hidden="true">{[62, 84, 42, 70, 52].map((width, index) => <i key={index}><span style={{ width: `${width}%` }} /></i>)}</div><p>七项参数，一眼读懂。<br />上传后可自由调整，再生成主题。</p></div>}
+        </> : <div className="sound-empty-guide"><div className="sound-empty-bars" aria-hidden="true">{[62, 84, 42, 70, 52].map((width, index) => <i key={index}><span style={{ width: `${width}%` }} /></i>)}</div><p>六项参数，一眼读懂。<br />上传后可自由调整，再生成主题。</p></div>}
       </div>
     </div>
 
     {music && <>
       <div className="sound-profile-footer">
         <div className="sound-compose-ticket"><span className="sound-compose-number" aria-hidden="true">03</span><div className="sound-compose-copy"><span className="sound-compose-eyebrow">NEXT / COMPOSE</span><h4>把性格，谱成旋律。</h4><p>{visionState === 'loading' ? <><LoaderCircle size={14} className="spin" aria-hidden="true" />正在补充语义理解…</> : needsGeneration ? '参数同步中，稍候即可试听' : '参数停下即更新 · 4 小节 / 三种演绎'}</p></div></div>
-        <button className="sound-compose-button" onClick={onApply} disabled={busy || analyzing || needsGeneration}><span>{analyzing ? '分析中' : needsGeneration ? '同步中' : '换一组灵感'}</span><span className="sound-compose-arrow"><ArrowUpRight size={20} aria-hidden="true" /></span></button>
+        <button className="sound-compose-button" onClick={onApply} disabled={busy || analyzing || needsGeneration}><span>{analyzing ? '分析中' : needsGeneration ? '同步中' : '换一组灵感'}</span><span className="sound-compose-icon"><Shuffle size={18} strokeWidth={1.8} aria-hidden="true" /></span></button>
       </div>
       <details className="sound-disclosure">
         <summary><span>图片解读与参数说明<small>{understanding ? '主体、场景与配乐线索' : '本地视觉分析'}</small></span><ChevronDown size={16} aria-hidden="true" /></summary>
         <div className="sound-details-body">
+          {meta && <div className="sound-meta" aria-label="音乐建议"><span><b>{meta.bpm}</b> BPM</span><span>{meta.scaleName}</span><span>{meta.texture}</span></div>}
           {understanding ? <>
             <p className="sound-summary">{understanding.summary}</p>
             <div className="sound-reading-grid"><article><span>主体</span><h4>{understanding.identity.name || '画面主角'}</h4><p>{understanding.subject.description || '暂无主体描述'}</p><div className="sound-tags">{understanding.subject.elements.map((item, index) => <span key={index}>{item}</span>)}</div></article><article><span>背景</span><h4>{image?.backgroundMode === 'transparent' ? '透明背景' : '场景氛围'}</h4><p>{understanding.background.description || '暂无场景描述'}</p><div className="sound-tags">{[...understanding.background.elements, ...understanding.background.setting].slice(0, 6).map((item, index) => <span key={index}>{item}</span>)}</div></article></div>

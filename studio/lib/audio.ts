@@ -6,7 +6,7 @@ const frequency = (pitch: number) => 440 * Math.pow(2, (pitch - 69) / 12);
 
 const SOUNDFONT_ROOT = 'https://gleitz.github.io/midi-js-soundfonts/FluidR3_GM';
 const SAMPLE_INSTRUMENT: Partial<Record<Voice, string>> = {
-  keys: 'acoustic_grand_piano', bell: 'celesta', pluck: 'acoustic_guitar_steel', pad: 'string_ensemble_1', bass: 'electric_bass_finger',
+  keys: 'acoustic_grand_piano', bell: 'celesta', pluck: 'acoustic_guitar_steel', pad: 'string_ensemble_1', flute: 'flute', violin: 'violin', marimba: 'marimba', bass: 'electric_bass_finger',
 };
 type LoadedSample = { buffer: AudioBuffer; baseMidi: number };
 const decodedSamples = new Map<string, Promise<LoadedSample | null>>();
@@ -25,7 +25,7 @@ async function decodeRemoteSample(voice: Voice, pitch: number): Promise<LoadedSa
   if (!decodedSamples.has(key)) decodedSamples.set(key, (async () => {
     try {
       const url = `${SOUNDFONT_ROOT}/${instrument}-mp3/${noteName(baseMidi)}.mp3`;
-      const response = await fetch(url, { mode: 'cors', cache: 'force-cache' }); if (!response.ok) return null;
+      const response = await fetch(url, { mode: 'cors', cache: 'force-cache', signal: AbortSignal.timeout(8000) }); if (!response.ok) return null;
       const bytes = await response.arrayBuffer();
       const decoder = new OfflineAudioContext(1, 1, SAMPLE_RATE), buffer = await decoder.decodeAudioData(bytes.slice(0));
       return { buffer, baseMidi };
@@ -50,8 +50,9 @@ async function prepareSamples(score: Score) {
 function sampledTonal(ctx: BaseAudioContext, out: AudioNode, note: Note, voice: Voice, secondsPerBeat: number, sample: LoadedSample) {
   const start = note.beat * secondsPerBeat, duration = Math.max(.04, note.duration * secondsPerBeat), source = ctx.createBufferSource(), gain = ctx.createGain();
   source.buffer = sample.buffer; source.playbackRate.value = Math.pow(2, (note.pitch - sample.baseMidi) / 12);
-  const attack = voice === 'pad' ? .16 : .006, release = voice === 'pad' ? .62 : voice === 'keys' ? .4 : .2;
-  const level = note.velocity * (voice === 'pad' ? .22 : voice === 'bass' ? .46 : .38);
+  const attack = voice === 'pad' ? .16 : voice === 'flute' ? .035 : voice === 'violin' ? .065 : .006;
+  const release = voice === 'pad' ? .62 : voice === 'keys' ? .4 : voice === 'flute' ? .16 : .2;
+  const level = note.velocity * (voice === 'pad' ? .22 : voice === 'bass' ? .46 : voice === 'flute' ? .20 : voice === 'violin' ? .18 : voice === 'marimba' ? .34 : .38);
   gain.gain.setValueAtTime(.0001, start); gain.gain.exponentialRampToValueAtTime(Math.max(.0002, level), start + attack);
   gain.gain.setValueAtTime(Math.max(.0002, level * (voice === 'pad' ? .78 : .72)), start + Math.max(attack + .01, duration * .7));
   gain.gain.exponentialRampToValueAtTime(.0001, start + duration + release);
@@ -113,6 +114,22 @@ function tonal(ctx: BaseAudioContext, out: AudioNode, note: Note, voice: Voice, 
     osc(ctx, env.gain, start, env.end, f, 'sine', .8);
     osc(ctx, env.gain, start, env.end, f, 'triangle', .28);
     if (note.pitch > 40) osc(ctx, env.gain, start, env.end, f / 2, 'sine', .16);
+  } else if (voice === 'flute') {
+    filter.frequency.value = Math.min(5000, f * 5);
+    const env = adsr(ctx, filter, start, duration, note.velocity * .14, .04, .08, .8, .16);
+    osc(ctx, env.gain, start, env.end, f, 'sine', 1);
+    osc(ctx, env.gain, start, env.end, f * 2, 'sine', .12);
+    osc(ctx, env.gain, start, env.end, f * 3, 'sine', .04);
+  } else if (voice === 'violin') {
+    filter.frequency.value = Math.min(5000, f * 6);
+    const env = adsr(ctx, filter, start, duration, note.velocity * .13, .07, .12, .78, .24);
+    osc(ctx, env.gain, start, env.end, f, 'sawtooth', .38, -2);
+    osc(ctx, env.gain, start, env.end, f, 'triangle', .45, 2);
+  } else if (voice === 'marimba') {
+    filter.frequency.value = Math.min(5800, f * 9);
+    const env = adsr(ctx, filter, start, Math.min(duration, .4), note.velocity * .20, .004, .18, .12, .22);
+    osc(ctx, env.gain, start, env.end, f, 'sine', 1);
+    osc(ctx, env.gain, start, env.end, f * 4, 'sine', .12);
   }
 }
 function percussion(ctx: BaseAudioContext, out: AudioNode, note: Note, secondsPerBeat: number, noise: AudioBuffer) {

@@ -6,7 +6,7 @@ const u16 = (n: number) => [n >>> 8 & 255, n & 255];
 const u32 = (n: number) => [n >>> 24 & 255, n >>> 16 & 255, n >>> 8 & 255, n & 255];
 function vlq(value: number): number[] { const result = [value & 127];while ((value = Math.floor(value / 128)) > 0) result.unshift((value & 127) | 128);return result; }
 function chunk(tag: string, bytes: number[]) { return [...text(tag), ...u32(bytes.length), ...bytes]; }
-const program: Record<Voice, number> = { keys: 4, bell: 10, pluck: 24, pad: 48, bass: 33, drums: 0 };
+const program: Record<Voice, number> = { keys: 0, bell: 8, pluck: 25, pad: 48, flute: 73, violin: 40, marimba: 12, bass: 33, drums: 0 };
 
 /** Standard MIDI format 1. Conductor + four named tracks; drums use channel 10. */
 export function encodeMidi(score: Score, mix: Mix): Uint8Array {

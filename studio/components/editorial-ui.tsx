@@ -8,7 +8,7 @@ export function RollingLabel({ children }: { children: string }) {
 }
 
 export function EditorialHeader({ children, studio = false }: { children?: ReactNode; studio?: boolean }) {
-  return <header className="editorial-header"><div className="editorial-brand"><Link href="/" className="brand-home" aria-label="Our Cadence 首页"><BrandWordmark /></Link><span>角色的另一种表达</span></div><nav aria-label="主要导航"><Link href="/" aria-current={!studio ? 'page' : undefined}><RollingLabel>INDEX</RollingLabel></Link><Link href="/studio" aria-current={studio ? 'page' : undefined}><RollingLabel>STUDIO</RollingLabel></Link>{children}</nav></header>;
+  return <header className="editorial-header"><div className="editorial-brand"><Link href="/" className="brand-home" aria-label="Our Cadence 首页"><BrandWordmark /></Link><span className="brand-tagline">角色的另一种表达</span></div><nav aria-label="主要导航"><Link href="/" aria-current={!studio ? 'page' : undefined}><RollingLabel>INDEX</RollingLabel></Link><Link href="/studio" aria-current={studio ? 'page' : undefined}><RollingLabel>STUDIO</RollingLabel></Link>{children}</nav></header>;
 }
 
 /** Display the supplied transparent wordmark with its outer whitespace cropped in CSS. */

@@ -1,0 +1,57 @@
+[
+  {
+    "id": "moon-stars",
+    "name": "星月",
+    "usage": "夜空、回忆与首页主装饰",
+    "source": "https://lordicon.com/icons/doodle/motif/1821-moon-stars",
+    "original": "doodle-motif-1821-moon-stars-hover-pinch.json",
+    "animation": "hover-pinch",
+    "plan": "FREE",
+    "sha256": "43f70918d0ec63479a1344c5d766744d4219c294fd570d2a0710b91fdcbab20c",
+    "bytes": 27662
+  },
+  {
+    "id": "music-note",
+    "name": "旋律音符",
+    "usage": "音乐创作、试听与主题选择",
+    "source": "https://lordicon.com/icons/doodle/motif/43-music-note-double",
+    "original": "doodle-motif-43-music-note-double-hover-pinch.json",
+    "animation": "hover-pinch",
+    "plan": "FREE",
+    "sha256": "19f93ff01f66bf61cd6b45a3772f215bed975d87ab2918aa13ab77e156c0bd8a",
+    "bytes": 23972
+  },
+  {
+    "id": "shooting-stars",
+    "name": "流星",
+    "usage": "灵感、创作完成与页面角落",
+    "source": "https://lordicon.com/icons/doodle/motif/1865-shooting-stars",
+    "original": "doodle-motif-1865-shooting-stars-hover-pinch.json",
+    "animation": "hover-pinch",
+    "plan": "FREE",
+    "sha256": "2ccc35a973af862aaeb1e166d197f2f41290002dd6843fb1c21f50a17991a6be",
+    "bytes": 118796
+  },
+  {
+    "id": "star",
+    "name": "星星",
+    "usage": "收藏、角色主题与小范围点缀",
+    "source": "https://lordicon.com/icons/doodle/motif/237-star",
+    "original": "doodle-motif-237-star-hover-rotation.json",
+    "animation": "hover-rotation",
+    "plan": "FREE",
+    "sha256": "54f4de95008b3dfd5d36911a909fe057feff8e9ba26b03d0f9e7fd4067b9132d",
+    "bytes": 22770
+  },
+  {
+    "id": "cloud",
+    "name": "云朵",
+    "usage": "日常氛围、轻柔留白与空状态",
+    "source": "https://lordicon.com/icons/doodle/motif/1-cloud",
+    "original": "doodle-motif-1-cloud-hover-pinch.json",
+    "animation": "hover-pinch",
+    "plan": "FREE",
+    "sha256": "bb9df3127e8cb062e02716e0614346e5e4d20777e343b626e8ee3bbbe6a2a26b",
+    "bytes": 16520
+  }
+]

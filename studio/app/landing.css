@@ -1,4 +1,11 @@
 @font-face {
+  font-family: 'Our Cadence Glow Sans';
+  src: url('/fonts/GlowSansSC-Normal-Regular-home.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
   font-family: 'Inter';
   src: url('/fonts/InterVariable-Italic.woff2') format('woff2');
   font-style: italic;
@@ -17,15 +24,20 @@
 }
 .chapter-main {
   --chapter-ink: #292631;
+  --chapter-action: #496f9e;
+  --chapter-copy-ink: #62556f;
+  --chapter-label-ink: #735f79;
+  position: relative;
+  isolation: isolate;
   display: flex;
   align-items: center;
   justify-content: center;
   min-width: 0;
   padding: 44px 7% 48px;
 }
-.chapter-1 { --chapter-ink: #29343c; }
-.chapter-2 { --chapter-ink: #3e2f3a; }
-.chapter-content { width: min(100%, 800px); animation: chapter-arrive .55s cubic-bezier(.22, 1, .36, 1) both; }
+.chapter-1 { --chapter-ink: #29343c; --chapter-action: #72558d; }
+.chapter-2 { --chapter-ink: #3e2f3a; --chapter-action: #8d536d; }
+.chapter-content { position: relative; z-index: 1; width: min(100%, 800px); animation: chapter-arrive .55s cubic-bezier(.22, 1, .36, 1) both; }
 .chapter-title-block { text-align: center; }
 .chapter-title-block h1 {
   max-width: 100%;
@@ -41,20 +53,62 @@
   line-height: 1.04;
 }
 .chapter-title-block h1 > span { display: inline-block; white-space: nowrap; }
+.chapter-initial-o, .chapter-title-blue { color: #587faf; }
+.chapter-initial-c, .chapter-title-violet { color: #9069a4; }
+.chapter-title-rose { color: #9a627c; }
 .chapter-1 .chapter-title-block h1 { font-size: clamp(60px, 6.8vw, 94px); }
-.chapter-meta { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 8px 20px; margin-top: 22px; color: #6f6974; font-size: 10px; line-height: 1.7; letter-spacing: .08em; }
-.chapter-meta > span:last-child { font-size: 9px; letter-spacing: .13em; }
+.chapter-meta { display: flex; align-items: baseline; justify-content: center; flex-wrap: wrap; gap: 8px 12px; margin-top: 22px; color: #6f6575; font-size: 12px; line-height: 20px; letter-spacing: .08em; }
+.chapter-meta > span { white-space: nowrap; }
+.chapter-meta > span:first-child { font-family: "Our Cadence Glow Sans", "Microsoft YaHei", sans-serif; font-weight: 400; color: var(--chapter-label-ink); }
+.chapter-meta > span:last-child { font-family: "Our Cadence Glow Sans", Arial, sans-serif; font-size: 11px; font-weight: 400; line-height: 20px; letter-spacing: .055em; color: #75617b; }
 .chapter-description { width: min(100%, 610px); display: flex; align-items: flex-start; justify-content: space-between; gap: 48px; margin: 38px auto 0; }
-.chapter-copy { max-width: 320px; margin: 0; font-size: 13px; line-height: 1.9; color: #5b5661; }
+.chapter-copy { max-width: 340px; margin: 0; font-family: "Our Cadence Glow Sans", "Microsoft YaHei", sans-serif; font-size: 14px; font-weight: 400; line-height: 1.8; letter-spacing: .02em; color: var(--chapter-copy-ink); text-wrap: balance; }
+.chapter-copy-highlight {
+  --highlight-ink: #485e80;
+  --highlight-start: #8fc3ee40;
+  --highlight-end: #bfc4ef33;
+  position: relative;
+  display: inline-block;
+  isolation: isolate;
+  white-space: nowrap;
+  background: transparent;
+  color: var(--highlight-ink);
+  font: inherit;
+}
+.chapter-copy-highlight[data-tone="violet"] { --highlight-ink: #694f84; --highlight-start: #b0a0df40; --highlight-end: #dfb3d533; }
+.chapter-copy-highlight[data-tone="rose"] { --highlight-ink: #814864; --highlight-start: #e7acc340; --highlight-end: #f1bfae33; }
+.chapter-copy-highlight::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  left: 0;
+  right: 0;
+  bottom: .12em;
+  height: .5em;
+  border-radius: .18em .1em .22em .08em;
+  background: linear-gradient(100deg, var(--highlight-start), var(--highlight-end));
+  transform-origin: left center;
+  animation: chapter-highlight-in .52s cubic-bezier(.22, 1, .36, 1) .18s both;
+}
+.chapter-copy-highlight:nth-of-type(2)::after { animation-delay: .24s; }
+.chapter-copy-highlight:nth-of-type(3)::after { animation-delay: .3s; }
+.editorial-home[data-decorations-paused="true"] .chapter-copy-highlight::after { animation-play-state: paused; }
+@keyframes chapter-highlight-in {
+  from { transform: scaleX(0); opacity: 0; }
+  to { transform: scaleX(1); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .chapter-copy-highlight::after { animation: none; transform: none; opacity: 1; }
+}
 .chapter-description .outline-pill { flex: none; margin-top: 2px; border-color: #817985; color: var(--chapter-ink); font-size: 12px; }
-.chapter-description .outline-pill:hover { background: var(--chapter-ink); border-color: var(--chapter-ink); color: white; }
-.chapter-description .outline-pill:focus-visible { outline-color: var(--chapter-ink); }
+.chapter-description .outline-pill:hover, .chapter-description .outline-pill:focus-visible { background: var(--chapter-action); border-color: var(--chapter-action); color: white; }
+.chapter-description .outline-pill:focus-visible { outline-color: var(--chapter-action); }
 .chapter-footer { padding: 16px 3.6% 26px; display: flex; justify-content: space-between; align-items: end; gap: 30px; min-height: 166px; }
 .chapter-scroll { display: flex; flex-direction: column; align-items: center; gap: 14px; padding-bottom: 8px; }
 .chapter-scroll span { writing-mode: vertical-lr; font-size: 12px; letter-spacing: 4px; }
 .chapter-scroll i { display: block; width: 1px; height: 44px; background: #8b8790; }
 .chapter-index { width: 145px; display: flex; flex-direction: column; align-items: flex-end; gap: 7px; padding-bottom: 10px; color: #77717c; font-size: 10px; letter-spacing: .6px; text-align: right; }
-.chapter-index > span:first-child { font-size: 12px; letter-spacing: 2px; color: #494251; }
+.chapter-index-number { font-size: 12px; letter-spacing: 2px; color: #494251; }
 .simplex-background { position: fixed; inset: 0; z-index: -1; pointer-events: none; background: radial-gradient(ellipse at 5% 80%, #f2e5cf80, transparent 60%), radial-gradient(ellipse at 95% 15%, #ead8ab70, transparent 65%), #fbf9f3; }
 .simplex-background canvas { display: block; width: 100%; height: 100%; opacity: 0; }
 .simplex-background canvas[data-ready=true] { opacity: 1; }
@@ -72,9 +126,9 @@
   .chapter-main { padding: 44px 25px 38px; }
   .chapter-title-block h1 { font-size: clamp(50px, 10vw, 76px); padding-inline: 5px; line-height: 1.08; }
   .chapter-1 .chapter-title-block h1 { font-size: clamp(43px, 8.8vw, 66px); }
-  .chapter-meta { flex-direction: column; gap: 4px; margin-top: 23px; }
+  .chapter-meta { flex-direction: column; align-items: center; gap: 4px; margin-top: 23px; }
   .chapter-description { max-width: 420px; margin-top: 29px; flex-direction: column; align-items: center; gap: 25px; }
-  .chapter-copy { max-width: 330px; font-size: 13px; text-align: left; }
+  .chapter-copy { max-width: 330px; font-size: 14px; text-align: left; }
   .chapter-description .outline-pill { margin-top: 0; }
   .chapter-footer { padding: 14px 24px 28px; min-height: 150px; gap: 25px; }
   .chapter-scroll { display: none; }
@@ -88,3 +142,33 @@
 }
 @media (prefers-reduced-motion: reduce) { .chapter-content { animation: none; } .melody-trail { display: none; } }
 @media (hover: none), (pointer: coarse) { .melody-trail { display: none; } }
+
+/* Artwork stays in the outer margins, clear of the chapter's reading area. */
+.celestial-decorations { position: absolute; inset: 0; z-index: 0; pointer-events: none; user-select: none; overflow: hidden; }
+.celestial-piece { position: absolute; display: block; }
+.doodle-animation { width: 100%; aspect-ratio: 1; }
+.doodle-animation svg { display: block; width: 100%; height: 100%; }
+.celestial-moon { width: clamp(105px, 11.5vw, 158px); left: 6%; top: 0; }
+.celestial-music { width: clamp(76px, 8vw, 108px); right: 7%; top: 7%; }
+.celestial-comet { width: clamp(84px, 9vw, 124px); left: 7%; bottom: 3%; }
+.celestial-stars { width: clamp(90px, 10vw, 138px); right: 7%; bottom: 0; }
+.celestial-sparkle-top { width: 44px; left: 34%; top: 4%; }
+.decoration-motion-toggle { display: inline-flex; align-items: center; justify-content: center; width: 44px; min-height: 44px; margin-right: -15px; padding: 0; border: 0; background: transparent; color: #777168; }
+.decoration-motion-toggle:hover { color: #292631; }
+@media (min-width: 761px) and (max-width: 1050px) {
+  .chapter-main { padding-block: 115px 120px; }
+  .celestial-moon { top: 0; left: 6%; }
+  .celestial-music { top: 3%; right: 8%; }
+  .celestial-comet, .celestial-stars { bottom: 0; }
+}
+@media (max-width: 760px) {
+  .chapter-main { padding-top: 104px; padding-bottom: 112px; }
+  .celestial-moon { width: 94px; left: 5%; top: 0; }
+  .celestial-music { width: 64px; right: 8%; top: 18px; }
+  .celestial-comet { width: 74px; left: 9%; bottom: 14px; }
+  .celestial-stars { width: 86px; right: 6%; bottom: 4px; }
+  .celestial-sparkle-top { width: 30px; left: 52%; top: 9px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .decoration-motion-toggle { display: none; }
+}

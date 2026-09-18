@@ -22,10 +22,10 @@ export function themeProfileKey(profile: Profile): string {
 }
 
 const CHARACTERS = {
-  bold: { names: ['烈光', '突围', '暗潮'], labels: ['锋芒旋律', '强攻节奏', '冷峻氛围'], text: '以高攻击性为起点' },
+  bold: { names: ['烈光', '突围', '暗潮'], labels: ['锋芒旋律', '强攻节奏', '冷峻氛围'], text: '以鲜明有力的气质为起点' },
   dark: { names: ['悬丝', '夜行', '迷雾'], labels: ['紧绷旋律', '暗色推进', '悬疑氛围'], text: '以暗色与张力为起点' },
   bright: { names: ['跃光', '疾行', '流星'], labels: ['明快旋律', '高能推进', '流动氛围'], text: '以高能量为起点' },
-  gentle: { names: ['轻语', '漫步', '浮梦'], labels: ['轻柔旋律', '舒缓节奏', '空灵氛围'], text: '以低能量、低攻击性为起点' },
+  gentle: { names: ['轻语', '漫步', '浮梦'], labels: ['轻柔旋律', '舒缓节奏', '空灵氛围'], text: '以安静柔和的气质为起点' },
   balanced: { names: ['微光', '远行', '回声'], labels: ['旋律走向', '节奏走向', '氛围走向'], text: '沿用当前音乐性格' },
 };
 

@@ -1,7 +1,10 @@
 import { themeCharacter, themePresentation, themeProfileKey, type ThemeCharacter } from './theme-character.ts';
 export type Mood = 'bright' | 'gentle' | 'resolute';
 export type Scene = 'daily' | 'memory' | 'battle';
-export type Voice = 'keys' | 'bell' | 'pluck' | 'pad' | 'bass' | 'drums';
+export const MELODY_VOICES = ['keys', 'bell', 'pluck', 'pad', 'flute', 'violin', 'marimba'] as const;
+export const CHORD_VOICES = ['keys', 'bell', 'pluck', 'pad', 'marimba'] as const;
+export const VOICE_IDS = [...MELODY_VOICES, 'bass', 'drums'] as const;
+export type Voice = typeof VOICE_IDS[number];
 export type Note = { pitch: number; beat: number; duration: number; velocity: number };
 export type MusicProfile = {
   energy: number;
@@ -61,14 +64,13 @@ export const MUSIC_PRESETS: { id: MusicDirection; name: string; description: str
   { id: 'anime-op', name: '动画 OP', description: '高能、明亮、推进感强，偏日系摇滚/流行。', mood: 'resolute', search: 'anime opening japanese rock energetic', music: { energy: 86, warmth: 48, tension: 56, mystery: 22, brightness: 76, elegance: 48, aggression: 54 } },
 ];
 
-export const MUSIC_DIMENSIONS: { key: keyof Omit<MusicProfile, 'hue'>; name: string; low: string; high: string }[] = [
+export const MUSIC_DIMENSIONS: { key: keyof Omit<MusicProfile, 'hue' | 'aggression'>; name: string; low: string; high: string }[] = [
   { key: 'energy', name: '能量', low: '安静', high: '强烈' },
   { key: 'warmth', name: '温度', low: '冷冽', high: '温暖' },
   { key: 'tension', name: '张力', low: '稳定', high: '紧张' },
   { key: 'mystery', name: '神秘', low: '直白', high: '幽深' },
   { key: 'brightness', name: '明亮', low: '暗色', high: '明亮' },
   { key: 'elegance', name: '优雅', low: '粗粝', high: '精致' },
-  { key: 'aggression', name: '攻击性', low: '柔和', high: '锐利' },
 ];
 export const MUSIC_DIMENSION_EFFECTS: Record<keyof Omit<MusicProfile, 'hue'>, { impacts: string[]; hint: string }> = {
   energy: { impacts: ['基础 BPM', '旋律密度', '鼓点推进'], hint: '值越高，速度更快、切分更密。' },
@@ -90,7 +92,7 @@ export const MOODS: Record<Mood, { name: string; root: number; scale: number[]; 
   gentle: { name: '温柔 / 内省', root: 57, scale: [0, 2, 3, 5, 7, 8, 10], hint: 'A 自然小调' },
   resolute: { name: '坚定 / 冒险', root: 62, scale: [0, 2, 3, 5, 7, 9, 10], hint: 'D 多利亚调式' },
 };
-export const VOICES: Record<Voice, string> = { keys: '柔和电钢琴', bell: '钟琴', pluck: '合成拨弦', pad: '弦乐铺底', bass: '圆润贝斯', drums: '合成鼓组' };
+export const VOICES: Record<Voice, string> = { keys: '柔和钢琴', bell: '钟琴', pluck: '木吉他', pad: '弦乐铺底', flute: '长笛', violin: '小提琴', marimba: '马林巴', bass: '圆润贝斯', drums: '合成鼓组' };
 export const defaultMix = (): Mix => [1.0, 0.74, 0.82, 0.62].map(volume => ({ volume, mute: false, solo: false }));
 const clamp = (value: number, min = 0, max = 100) => Math.max(min, Math.min(max, value));
 export function hash(text: string): number {
